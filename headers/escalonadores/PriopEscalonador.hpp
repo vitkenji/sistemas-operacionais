@@ -7,5 +7,5 @@ public:
     PriopEscalonador();
     ~PriopEscalonador();
 
-    void atualizarTarefas(std::vector<Tarefa>& tarefas, int tempoAtual) = 0;
+    void atualizarTarefas(std::vector<Tarefa>& tarefas, int tempoAtual);
 };

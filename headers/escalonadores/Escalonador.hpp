@@ -1,4 +1,7 @@
 #pragma once
+#include "tarefa/tarefa.hpp"
+
+#include <vector>
 
 class Escalonador
 {
