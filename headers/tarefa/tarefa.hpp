@@ -26,6 +26,5 @@ public:
     ~Tarefa();
 
     void registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado);
-    void mostrarEstadoNoTempo(int instanteTempo) const;
-    void mostrarLinhaDoTempo() const;
+    EstadoTarefa buscarEstadoNoTempo(int instanteTempo) const;
 };

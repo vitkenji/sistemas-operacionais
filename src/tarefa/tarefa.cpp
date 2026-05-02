@@ -19,27 +19,14 @@ void Tarefa::registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado)
     std::cout << "Tempo " << instanteTempo << ": Estado atualizado.\n";
 }
 
-void Tarefa::mostrarEstadoNoTempo(int instanteTempo) const
+EstadoTarefa Tarefa::buscarEstadoNoTempo(int instanteTempo) const
 {
-    auto busca = historicoNoTempo.find(instanteTempo);
+    std::map<int, EstadoTarefa>::const_iterator busca = historicoNoTempo.find(instanteTempo);
 
-    if (busca != historicoNoTempo.end())
+    if (busca == historicoNoTempo.end())
     {
-        std::cout << "Na tarefa " << ID << ", no tempo " << instanteTempo
-                  << ", o estado era: " << static_cast<int>(busca->second) << "\n";
+        return EstadoTarefa::Nova;
     }
-    else
-    {
-        std::cout << "Nenhum estado mapeado para o tempo " << instanteTempo << ".\n";
-    }
-}
 
-void Tarefa::mostrarLinhaDoTempo() const
-{
-    std::cout << "\n--- Linha do Tempo da Tarefa " << ID << " ---\n";
-    for (const auto& par : historicoNoTempo)
-    {
-        std::cout << "Tempo " << par.first << " -> " << static_cast<int>(par.second) << "\n";
-    }
-    std::cout << "-----------------------------------\n";
+    return busca->second;
 }
