@@ -25,6 +25,7 @@ public:
     Tarefa(int id, int ingresso, int duracao, int prioridade, std::vector<int> lista_eventos);
     ~Tarefa();
 
+    int getID() const;
     void registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado);
     EstadoTarefa buscarEstadoNoTempo(int instanteTempo) const;
 };

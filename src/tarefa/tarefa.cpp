@@ -13,6 +13,11 @@ Tarefa::Tarefa(int id, int ingresso, int duracao, int prioridade, std::vector<in
 
 Tarefa::~Tarefa() = default;
 
+int Tarefa::getID() const
+{
+    return ID;
+}
+
 void Tarefa::registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado)
 {
     historicoNoTempo[instanteTempo] = novoEstado;
