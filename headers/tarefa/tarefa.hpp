@@ -4,11 +4,11 @@
 
 // estados possíveis Tarefa
 enum class EstadoTarefa {
-    Pendente,
-    EmExecucao,
-    Pausada,
-    Concluida,
-    Falha
+    Nova,
+    Pronta,
+    Execucao,
+    Suspensa,
+    Terminada
 };
 
 class Tarefa

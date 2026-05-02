@@ -2,7 +2,6 @@
 #include <iostream>
 #include <utility>
 
-
 Tarefa::Tarefa(int id, int ingresso, int duracao, int prioridade, std::vector<int> lista_eventos)
     : ID(id),
       ingresso(ingresso),
@@ -26,8 +25,8 @@ void Tarefa::mostrarEstadoNoTempo(int instanteTempo) const
 
     if (busca != historicoNoTempo.end())
     {
-        std::cout << "Na tarefa " << ID << ", no tempo " << instanteTempo << ", o estado era: ";
-        imprimirEstado(busca->second);
+        std::cout << "Na tarefa " << ID << ", no tempo " << instanteTempo
+                  << ", o estado era: " << static_cast<int>(busca->second) << "\n";
     }
     else
     {
@@ -40,8 +39,7 @@ void Tarefa::mostrarLinhaDoTempo() const
     std::cout << "\n--- Linha do Tempo da Tarefa " << ID << " ---\n";
     for (const auto& par : historicoNoTempo)
     {
-        std::cout << "Tempo " << par.first << " -> ";
-        imprimirEstado(par.second);
+        std::cout << "Tempo " << par.first << " -> " << static_cast<int>(par.second) << "\n";
     }
     std::cout << "-----------------------------------\n";
 }
