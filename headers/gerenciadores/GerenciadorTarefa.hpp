@@ -20,6 +20,7 @@ public:
     ~GerenciadorTarefa();
     static GerenciadorTarefa* getInstance(std::string tipoEscalonamento = "priop");
     void avancaTempo(int tempoAtual);
+    int getQuantidadeEstado(EstadoTarefa estado) const;
 
 
 };
