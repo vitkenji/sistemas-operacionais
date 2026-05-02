@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.14) # Atualizado para suportar FetchContent mel
 project(ProjetoImGui)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Procura o OpenGL (que já vem junto com o compilador/Windows)
 find_package(OpenGL REQUIRED)
@@ -19,6 +20,7 @@ FetchContent_Declare(
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_WAYLAND OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(glfw)
 # ==============================================================================
 
@@ -33,11 +35,23 @@ set(IMGUI_SOURCES
     imgui/imgui_impl_opengl3.cpp
 )
 
-# Cria o seu executável
-add_executable(${PROJECT_NAME} main.cpp ${IMGUI_SOURCES})
+set(PROJECT_SOURCES
+    src/tarefa/tarefa.cpp
+    src/gerenciadores/GerenciadorTarefa.cpp
+    src/gerenciadores/gerenciadorGrafico.cpp
+    src/escalonadores/PriopEscalonador.cpp
+    src/algoritmos/PRIOp.cpp
+    src/algoritmos/SRTF.cpp
+)
 
-# Diz ao compilador onde achar os arquivos .h do ImGui
-target_include_directories(${PROJECT_NAME} PRIVATE imgui)
+# Cria o seu executável
+add_executable(${PROJECT_NAME} main.cpp ${IMGUI_SOURCES} ${PROJECT_SOURCES})
+
+# Diz ao compilador onde achar os arquivos .h do ImGui e do projeto
+target_include_directories(${PROJECT_NAME} PRIVATE
+    headers
+    imgui
+)
 
 # Linka o OpenGL e o glfw (que o CMake acabou de baixar) ao seu projeto
 target_link_libraries(${PROJECT_NAME} PRIVATE OpenGL::GL glfw)
