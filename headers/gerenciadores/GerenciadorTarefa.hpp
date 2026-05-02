@@ -1,7 +1,9 @@
 #pragma once
+#include "escalonadores/Escalonador.hpp"
 #include "tarefa/tarefa.hpp"
 
 #include <map>
+#include <string>
 #include <vector>
 
 class GerenciadorTarefa
@@ -10,11 +12,14 @@ private:
     static GerenciadorTarefa* instance;
     std::vector<Tarefa> listaTarefas;
     std::map<EstadoTarefa, int> contagemEstados;
+    Escalonador* pEscalonador;
 
-    GerenciadorTarefa();
+    GerenciadorTarefa(std::string tipoEscalonamento);
+    Escalonador* criarEscalonador(std::string tipoEscalonamento);
 public:
     ~GerenciadorTarefa();
-    static GerenciadorTarefa* getInstance();
+    static GerenciadorTarefa* getInstance(std::string tipoEscalonamento = "priop");
+    void avancaTempo(int tempoAtual);
 
 
 };
