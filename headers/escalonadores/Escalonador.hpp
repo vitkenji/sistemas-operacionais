@@ -4,5 +4,5 @@ class Escalonador
 {
 public:
     virtual ~Escalonador() = default;
-    virtual void atualizarTarefas() = 0;
+    virtual void atualizarTarefas(std::vector<Tarefa>& tarefas, int tempoAtual) = 0;
 };
