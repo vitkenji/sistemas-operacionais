@@ -16,9 +16,11 @@ private:
 
     GerenciadorTarefa(std::string tipoEscalonamento);
     Escalonador* criarEscalonador(std::string tipoEscalonamento);
+    void atualizarContagemEstados(int tempoAtual);
 public:
     ~GerenciadorTarefa();
     static GerenciadorTarefa* getInstance(std::string tipoEscalonamento = "priop");
+    void adicionarTarefa(Tarefa tarefa);
     void avancaTempo(int tempoAtual);
     int getQuantidadeEstado(EstadoTarefa estado) const;
 

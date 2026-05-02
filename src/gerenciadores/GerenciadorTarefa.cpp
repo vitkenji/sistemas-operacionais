@@ -25,10 +25,16 @@ GerenciadorTarefa::~GerenciadorTarefa()
     delete pEscalonador;
 }
 
+void GerenciadorTarefa::adicionarTarefa(Tarefa tarefa)
+{
+    listaTarefas.push_back(tarefa);
+}
+
 void GerenciadorTarefa::avancaTempo(int tempoAtual)
 {
     std::cout << "\n=== Avancando relogio para t = " << tempoAtual << " ===\n";
     pEscalonador->atualizarTarefas(listaTarefas, tempoAtual);
+    atualizarContagemEstados(tempoAtual);
 }
 
 int GerenciadorTarefa::getQuantidadeEstado(EstadoTarefa estado) const
@@ -41,6 +47,17 @@ int GerenciadorTarefa::getQuantidadeEstado(EstadoTarefa estado) const
     }
 
     return busca->second;
+}
+
+void GerenciadorTarefa::atualizarContagemEstados(int tempoAtual)
+{
+    contagemEstados.clear();
+
+    for (std::vector<Tarefa>::iterator tarefa = listaTarefas.begin(); tarefa != listaTarefas.end(); ++tarefa)
+    {
+        EstadoTarefa estado = tarefa->buscarEstadoNoTempo(tempoAtual);
+        contagemEstados[estado]++;
+    }
 }
 
 Escalonador* GerenciadorTarefa::criarEscalonador(std::string tipoEscalonamento)
