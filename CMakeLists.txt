@@ -42,6 +42,7 @@ set(PROJECT_SOURCES
     src/escalonadores/PriopEscalonador.cpp
     src/algoritmos/PRIOp.cpp
     src/algoritmos/SRTF.cpp
+    src/telas/TelaInicial.cpp
 )
 
 # Cria o seu executável
