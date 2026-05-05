@@ -1,8 +1,8 @@
 #pragma once
 #include <map>
+#include <string>
 #include <vector>
 
-// estados possíveis Tarefa
 enum class EstadoTarefa {
     Nova,
     Pronta,
@@ -15,6 +15,7 @@ class Tarefa
 {
 private:
     int ID;
+    std::string corHex;   // cor RGB em hex, ex: "F0E0D0"
     int ingresso;
     int duracao;
     int prioridade;
@@ -22,10 +23,16 @@ private:
     std::map<int, EstadoTarefa> historicoNoTempo;
 
 public:
-    Tarefa(int id, int ingresso, int duracao, int prioridade, std::vector<int> lista_eventos);
+    Tarefa(int id, std::string corHex, int ingresso, int duracao,
+           int prioridade, std::vector<int> lista_eventos);
     ~Tarefa();
 
-    int getID() const;
-    void registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado);
+    int         getID()         const;
+    std::string getCorHex()     const;
+    int         getIngresso()   const;
+    int         getDuracao()    const;
+    int         getPrioridade() const;
+
+    void        registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado);
     EstadoTarefa buscarEstadoNoTempo(int instanteTempo) const;
 };

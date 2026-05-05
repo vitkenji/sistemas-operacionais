@@ -2,8 +2,10 @@
 #include <iostream>
 #include <utility>
 
-Tarefa::Tarefa(int id, int ingresso, int duracao, int prioridade, std::vector<int> lista_eventos)
+Tarefa::Tarefa(int id, std::string corHex, int ingresso, int duracao,
+               int prioridade, std::vector<int> lista_eventos)
     : ID(id),
+      corHex(std::move(corHex)),
       ingresso(ingresso),
       duracao(duracao),
       prioridade(prioridade),
@@ -13,25 +15,21 @@ Tarefa::Tarefa(int id, int ingresso, int duracao, int prioridade, std::vector<in
 
 Tarefa::~Tarefa() = default;
 
-int Tarefa::getID() const
-{
-    return ID;
-}
+int         Tarefa::getID()         const { return ID; }
+std::string Tarefa::getCorHex()     const { return corHex; }
+int         Tarefa::getIngresso()   const { return ingresso; }
+int         Tarefa::getDuracao()    const { return duracao; }
+int         Tarefa::getPrioridade() const { return prioridade; }
 
 void Tarefa::registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado)
 {
     historicoNoTempo[instanteTempo] = novoEstado;
-    std::cout << "Tempo " << instanteTempo << ": Estado atualizado.\n";
 }
 
 EstadoTarefa Tarefa::buscarEstadoNoTempo(int instanteTempo) const
 {
-    std::map<int, EstadoTarefa>::const_iterator busca = historicoNoTempo.find(instanteTempo);
-
+    auto busca = historicoNoTempo.find(instanteTempo);
     if (busca == historicoNoTempo.end())
-    {
         return EstadoTarefa::Nova;
-    }
-
     return busca->second;
 }

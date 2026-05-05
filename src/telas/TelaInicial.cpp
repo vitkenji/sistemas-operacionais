@@ -1,69 +1,152 @@
 #include "telas/TelaInicial.hpp"
+#include "gerenciadores/GerenciadorTarefa.hpp"
 #include "imgui.h"
-#include <fstream>
-#include <sstream>
-#include <iostream>
 
-TelaInicial::TelaInicial() {
-    // Configurações iniciais quando a tela é criada
-    caminhoArquivo[0] = '\0'; // Deixa o campo de texto vazio no começo
-    arquivoCarregado = false;
-}
+#include <string>
 
-void TelaInicial::processarImportacao() {
-    // Tenta abrir o arquivo no caminho digitado
-    std::ifstream arquivo(caminhoArquivo);
-    
-    if (arquivo.is_open()) {
-        // Se conseguiu abrir, lê tudo e joga na string 'conteudoLido'
-        std::stringstream buffer;
-        buffer << arquivo.rdbuf();
-        conteudoLido = buffer.str();
-        
-        arquivoCarregado = true;
-        arquivo.close();
-    } else {
-        // Se falhou (arquivo não existe, caminho errado, etc)
-        conteudoLido = "Erro: Nao foi possivel abrir o arquivo. Verifique o caminho!";
-        arquivoCarregado = false;
+// Converte string hex "RRGGBB" em ImVec4 para uso no ImGui
+static ImVec4 hexParaImVec4(const std::string& hex)
+{
+    if (hex.size() < 6)
+        return ImVec4(1.f, 1.f, 1.f, 1.f);
+    try {
+        unsigned r = std::stoul(hex.substr(0, 2), nullptr, 16);
+        unsigned g = std::stoul(hex.substr(2, 2), nullptr, 16);
+        unsigned b = std::stoul(hex.substr(4, 2), nullptr, 16);
+        return ImVec4(r / 255.f, g / 255.f, b / 255.f, 1.f);
+    } catch (...) {
+        return ImVec4(1.f, 1.f, 1.f, 1.f);
     }
 }
 
-void TelaInicial::desenhar() {
-    // 1. Inicia a janela do ImGui
-    ImGui::Begin("Bem-vindo ao Sistema");
+TelaInicial::TelaInicial()
+{
+    caminhoArquivo[0] = '\0';
+    tentouCarregar    = false;
+}
 
-    // 2. Textos e campo de digitação
-    ImGui::Text("Por favor, importe o seu arquivo de tarefas (.txt)");
-    ImGui::Separator(); // Uma linha bonitinha para separar
+void TelaInicial::processarImportacao()
+{
+    ultimaConfig   = CarregadorConfig::carregar(caminhoArquivo);
+    tentouCarregar = true;
+}
+
+void TelaInicial::desenhar()
+{
+    ImGui::SetNextWindowSize(ImVec2(720, 520), ImGuiCond_FirstUseEver);
+    ImGui::Begin("Simulador de SO - Configuracao");
+
+    if (!ultimaConfig.valida)
+        desenharFormulario();
+    else
+        desenharResultado();
+
+    ImGui::End();
+}
+
+void TelaInicial::desenharFormulario()
+{
+    ImGui::Text("Importe o arquivo de configuracao (.txt) para iniciar a simulacao.");
+    ImGui::Separator();
+    ImGui::Spacing();
 
     ImGui::Text("Caminho do arquivo:");
-    // Input de texto do ImGui. Ele salva o que o usuário digitar em 'caminhoArquivo'
+    ImGui::SetNextItemWidth(-1.f);
     ImGui::InputText("##caminho", caminhoArquivo, IM_ARRAYSIZE(caminhoArquivo));
+    ImGui::Spacing();
 
-    // 3. O Botão de Importar
-    if (ImGui::Button("Importar Arquivo")) {
-        // Se o usuário clicar no botão, chama a função de leitura
+    if (ImGui::Button("Importar", ImVec2(120, 0)))
         processarImportacao();
+
+    if (tentouCarregar && !ultimaConfig.valida) {
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(1.f, 0.3f, 0.3f, 1.f),
+                           "Erro: %s", ultimaConfig.erroMensagem.c_str());
     }
 
-    // 4. Feedback visual após clicar no botão
-    if (arquivoCarregado) {
-        // Texto verde para sucesso
-        ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Arquivo importado com sucesso!");
-        
-        // (Opcional) Mostra um pedacinho do arquivo lido em uma caixa de texto não editável
-        ImGui::Text("Conteudo lido:");
-        ImGui::InputTextMultiline("##conteudo", (char*)conteudoLido.c_str(), conteudoLido.size(), 
-                                  ImVec2(-FLT_MIN, ImGui::GetTextLineHeight() * 10), 
-                                  ImGuiInputTextFlags_ReadOnly);
-                                  
-        // Aqui no futuro você poderia colocar um botão: Se(ImGui::Button("Ir para Simulacao")) { ... }
-    } else if (!conteudoLido.empty()) {
-        // Texto vermelho para erro
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "%s", conteudoLido.c_str());
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::TextDisabled("Formato esperado:");
+    ImGui::TextDisabled("  Linha 1: algoritmo;quantum;qtde_cpus");
+    ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao;prioridade[;eventos]");
+    ImGui::TextDisabled("  Algoritmos: SRTF, PRIOP  |  qtde_cpus >= 2");
+}
+
+void TelaInicial::desenharResultado()
+{
+    ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Configuracao carregada com sucesso!");
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // Resumo da configuração
+    ImGui::Text("Algoritmo : %s", ultimaConfig.algoritmo.c_str());
+    ImGui::Text("Quantum   : %d tick(s)", ultimaConfig.quantum);
+    ImGui::Text("CPUs      : %d", ultimaConfig.qtde_cpus);
+    ImGui::Text("Tarefas   : %d", static_cast<int>(ultimaConfig.tarefas.size()));
+    ImGui::Spacing();
+
+    // Tabela de tarefas
+    ImGui::Text("Tarefas carregadas:");
+    if (ImGui::BeginTable("tabelaTarefas", 6,
+            ImGuiTableFlags_Borders    |
+            ImGuiTableFlags_RowBg      |
+            ImGuiTableFlags_ScrollY    |
+            ImGuiTableFlags_SizingFixedFit,
+            ImVec2(0, 200)))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);
+        ImGui::TableSetupColumn("ID",         ImGuiTableColumnFlags_WidthFixed, 40.f);
+        ImGui::TableSetupColumn("Cor",        ImGuiTableColumnFlags_WidthFixed, 90.f);
+        ImGui::TableSetupColumn("Ingresso",   ImGuiTableColumnFlags_WidthFixed, 70.f);
+        ImGui::TableSetupColumn("Duracao",    ImGuiTableColumnFlags_WidthFixed, 70.f);
+        ImGui::TableSetupColumn("Prioridade", ImGuiTableColumnFlags_WidthFixed, 80.f);
+        ImGui::TableSetupColumn("Eventos",    ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+
+        for (const auto& t : ultimaConfig.tarefas) {
+            ImGui::TableNextRow();
+
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%d", t.getID());
+
+            ImGui::TableSetColumnIndex(1);
+            ImVec4 cor   = hexParaImVec4(t.getCorHex());
+            std::string btnId = "##cor" + std::to_string(t.getID());
+            ImGui::ColorButton(btnId.c_str(), cor,
+                               ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel,
+                               ImVec2(18, 18));
+            ImGui::SameLine();
+            ImGui::Text("#%s", t.getCorHex().c_str());
+
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%d", t.getIngresso());
+
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%d", t.getDuracao());
+
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%d", t.getPrioridade());
+
+            ImGui::TableSetColumnIndex(5);
+            ImGui::TextDisabled("(Projeto B)");
+        }
+
+        ImGui::EndTable();
     }
 
-    // 5. Finaliza a janela
-    ImGui::End();
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    if (ImGui::Button("Carregar outro arquivo", ImVec2(200, 0))) {
+        ultimaConfig   = ConfigSimulacao{};
+        tentouCarregar = false;
+    }
+
+    ImGui::SameLine();
+
+    if (ImGui::Button("Iniciar Simulacao >>", ImVec2(180, 0))) {
+        GerenciadorTarefa::configurar(ultimaConfig);
+        // TODO (passo 2): transicionar para a tela de simulacao
+    }
 }

@@ -1,28 +1,36 @@
 #pragma once
+#include "config/CarregadorConfig.hpp"
 #include "escalonadores/Escalonador.hpp"
-#include "tarefa/tarefa.hpp"
 
 #include <map>
-#include <string>
 #include <vector>
 
 class GerenciadorTarefa
 {
 private:
     static GerenciadorTarefa* instance;
-    std::vector<Tarefa> listaTarefas;
-    std::map<EstadoTarefa, int> contagemEstados;
-    Escalonador* pEscalonador;
 
-    GerenciadorTarefa(std::string tipoEscalonamento);
-    Escalonador* criarEscalonador(std::string tipoEscalonamento);
-    void atualizarContagemEstados(int tempoAtual);
+    std::vector<Tarefa>          listaTarefas;
+    std::map<EstadoTarefa, int>  contagemEstados;
+    Escalonador*                 pEscalonador;
+    int                          qtde_cpus;
+    int                          quantum;
+
+    explicit GerenciadorTarefa(const ConfigSimulacao& config);
+    Escalonador* criarEscalonador(const std::string& tipo);
+    void         atualizarContagemEstados(int tempoAtual);
+
 public:
     ~GerenciadorTarefa();
-    static GerenciadorTarefa* getInstance(std::string tipoEscalonamento = "priop");
-    void adicionarTarefa(Tarefa tarefa);
+
+    // Reconfigura (ou cria) o gerenciador com os dados do arquivo de config.
+    // Deve ser chamado antes de getInstance().
+    static void              configurar(const ConfigSimulacao& config);
+    static void              resetar();
+    static GerenciadorTarefa* getInstance();
+
     void avancaTempo(int tempoAtual);
-    int getQuantidadeEstado(EstadoTarefa estado) const;
-
-
+    int  getQuantidadeEstado(EstadoTarefa estado) const;
+    int  getQtdeCpus() const;
+    int  getQuantum()  const;
 };

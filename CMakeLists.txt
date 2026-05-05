@@ -37,9 +37,11 @@ set(IMGUI_SOURCES
 
 set(PROJECT_SOURCES
     src/tarefa/tarefa.cpp
+    src/config/CarregadorConfig.cpp
     src/gerenciadores/GerenciadorTarefa.cpp
     src/gerenciadores/gerenciadorGrafico.cpp
     src/escalonadores/PriopEscalonador.cpp
+    src/escalonadores/SRTFescalonador.cpp
     src/algoritmos/PRIOp.cpp
     src/algoritmos/SRTF.cpp
     src/telas/TelaInicial.cpp

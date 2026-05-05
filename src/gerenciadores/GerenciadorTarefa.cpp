@@ -1,33 +1,39 @@
 #include "gerenciadores/GerenciadorTarefa.hpp"
 #include "escalonadores/PriopEscalonador.hpp"
+#include "escalonadores/SRTFEscalonador.hpp"
 
 #include <iostream>
-#include <string>
 
 GerenciadorTarefa* GerenciadorTarefa::instance = nullptr;
 
-GerenciadorTarefa* GerenciadorTarefa::getInstance(std::string tipoEscalonamento)
+GerenciadorTarefa* GerenciadorTarefa::getInstance()
 {
-    if(instance == nullptr)
-    {
-        instance = new GerenciadorTarefa(tipoEscalonamento);
-    }
     return instance;
 }
 
-GerenciadorTarefa::GerenciadorTarefa(std::string tipoEscalonamento)
-    : pEscalonador(criarEscalonador(tipoEscalonamento))
+void GerenciadorTarefa::configurar(const ConfigSimulacao& config)
+{
+    resetar();
+    instance = new GerenciadorTarefa(config);
+}
+
+void GerenciadorTarefa::resetar()
+{
+    delete instance;
+    instance = nullptr;
+}
+
+GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
+    : pEscalonador(criarEscalonador(config.algoritmo)),
+      qtde_cpus(config.qtde_cpus),
+      quantum(config.quantum),
+      listaTarefas(config.tarefas)
 {
 }
 
 GerenciadorTarefa::~GerenciadorTarefa()
 {
     delete pEscalonador;
-}
-
-void GerenciadorTarefa::adicionarTarefa(Tarefa tarefa)
-{
-    listaTarefas.push_back(tarefa);
 }
 
 void GerenciadorTarefa::avancaTempo(int tempoAtual)
@@ -39,33 +45,26 @@ void GerenciadorTarefa::avancaTempo(int tempoAtual)
 
 int GerenciadorTarefa::getQuantidadeEstado(EstadoTarefa estado) const
 {
-    std::map<EstadoTarefa, int>::const_iterator busca = contagemEstados.find(estado);
-
-    if (busca == contagemEstados.end())
-    {
-        return 0;
-    }
-
-    return busca->second;
+    auto busca = contagemEstados.find(estado);
+    return (busca != contagemEstados.end()) ? busca->second : 0;
 }
+
+int GerenciadorTarefa::getQtdeCpus() const { return qtde_cpus; }
+int GerenciadorTarefa::getQuantum()   const { return quantum; }
 
 void GerenciadorTarefa::atualizarContagemEstados(int tempoAtual)
 {
     contagemEstados.clear();
-
-    for (std::vector<Tarefa>::iterator tarefa = listaTarefas.begin(); tarefa != listaTarefas.end(); ++tarefa)
-    {
-        EstadoTarefa estado = tarefa->buscarEstadoNoTempo(tempoAtual);
+    for (auto& tarefa : listaTarefas) {
+        EstadoTarefa estado = tarefa.buscarEstadoNoTempo(tempoAtual);
         contagemEstados[estado]++;
     }
 }
 
-Escalonador* GerenciadorTarefa::criarEscalonador(std::string tipoEscalonamento)
+Escalonador* GerenciadorTarefa::criarEscalonador(const std::string& tipo)
 {
-    if (tipoEscalonamento == "priop" || tipoEscalonamento == "PRIOp" || tipoEscalonamento == "Priop")
-    {
-        return new PriopEscalonador();
-    }
-
+    if (tipo == "srtf")
+        return new SRTFEscalonador();
+    // Padrão: "priop" (e qualquer string desconhecida)
     return new PriopEscalonador();
 }
