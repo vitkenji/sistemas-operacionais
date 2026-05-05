@@ -1,14 +1,24 @@
 #pragma once
-#include <iostream>
 
-class GerenciadorGrafico
-{
+#include <GLFW/glfw3.h>
+#include <string>
+
+class GerenciadorGrafico {
 private:
-    static GerenciadorGrafico* instance;
-    GerenciadorGrafico();
+    GLFWwindow* window;
+    int largura;
+    int altura;
+    std::string titulo;
+
 public:
+    GerenciadorGrafico(int largura, int altura, const std::string& titulo);
     ~GerenciadorGrafico();
-    static GerenciadorGrafico* getInstance();
 
+    bool inicializar();
+    void limpar();
 
+    bool janelaDeveFechar() const;
+    void processarEventos();
+    void iniciarFrame();
+    void renderizar();
 };
