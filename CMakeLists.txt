@@ -45,6 +45,7 @@ set(PROJECT_SOURCES
     src/algoritmos/PRIOp.cpp
     src/algoritmos/SRTF.cpp
     src/telas/TelaInicial.cpp
+    src/telas/TelaSimulacao.cpp
 )
 
 # Cria o seu executável

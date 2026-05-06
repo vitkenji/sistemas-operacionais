@@ -6,6 +6,7 @@ private:
     char            caminhoArquivo[512];
     ConfigSimulacao ultimaConfig;
     bool            tentouCarregar;
+    bool            simulacaoIniciada;
 
     void processarImportacao();
     void desenharFormulario();
@@ -13,5 +14,10 @@ private:
 
 public:
     TelaInicial();
+
     void desenhar();
+    bool isSimulacaoIniciada() const;
+
+    // Chamado quando o usuário volta da tela de simulação
+    void resetar();
 };

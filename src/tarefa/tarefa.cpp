@@ -1,5 +1,4 @@
 #include "tarefa/tarefa.hpp"
-#include <iostream>
 #include <utility>
 
 Tarefa::Tarefa(int id, std::string corHex, int ingresso, int duracao,
@@ -9,7 +8,10 @@ Tarefa::Tarefa(int id, std::string corHex, int ingresso, int duracao,
       ingresso(ingresso),
       duracao(duracao),
       prioridade(prioridade),
-      lista_eventos(std::move(lista_eventos))
+      lista_eventos(std::move(lista_eventos)),
+      estadoAtual(EstadoTarefa::Nova),
+      tempoRestante(duracao),
+      quantumRestante(0)
 {
 }
 
@@ -21,15 +23,31 @@ int         Tarefa::getIngresso()   const { return ingresso; }
 int         Tarefa::getDuracao()    const { return duracao; }
 int         Tarefa::getPrioridade() const { return prioridade; }
 
-void Tarefa::registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado)
+EstadoTarefa Tarefa::getEstadoAtual()    const { return estadoAtual; }
+int          Tarefa::getTempoRestante()   const { return tempoRestante; }
+int          Tarefa::getQuantumRestante() const { return quantumRestante; }
+
+void Tarefa::setEstadoAtual(EstadoTarefa estado)  { estadoAtual = estado; }
+void Tarefa::setTempoRestante(int t)              { tempoRestante = t; }
+void Tarefa::setQuantumRestante(int q)            { quantumRestante = q; }
+
+void Tarefa::decrementarTempoRestante()
 {
-    historicoNoTempo[instanteTempo] = novoEstado;
+    if (tempoRestante > 0) tempoRestante--;
 }
 
-EstadoTarefa Tarefa::buscarEstadoNoTempo(int instanteTempo) const
+void Tarefa::decrementarQuantumRestante()
 {
-    auto busca = historicoNoTempo.find(instanteTempo);
-    if (busca == historicoNoTempo.end())
-        return EstadoTarefa::Nova;
-    return busca->second;
+    if (quantumRestante > 0) quantumRestante--;
+}
+
+void Tarefa::registrarEstadoNoTempo(int tick, EstadoTarefa estado)
+{
+    historicoNoTempo[tick] = estado;
+}
+
+EstadoTarefa Tarefa::buscarEstadoNoTempo(int tick) const
+{
+    auto it = historicoNoTempo.find(tick);
+    return (it != historicoNoTempo.end()) ? it->second : EstadoTarefa::Nova;
 }

@@ -11,15 +11,21 @@ enum class EstadoTarefa {
     Terminada
 };
 
-class Tarefa
-{
+class Tarefa {
 private:
-    int ID;
-    std::string corHex;   // cor RGB em hex, ex: "F0E0D0"
-    int ingresso;
-    int duracao;
-    int prioridade;
+    int          ID;
+    std::string  corHex;
+    int          ingresso;
+    int          duracao;
+    int          prioridade;
     std::vector<int> lista_eventos;
+
+    // Estado corrente da simulação (modificado pelo motor tick a tick)
+    EstadoTarefa estadoAtual;
+    int          tempoRestante;
+    int          quantumRestante;
+
+    // Histórico por tick (alimenta o Gráfico de Gantt)
     std::map<int, EstadoTarefa> historicoNoTempo;
 
 public:
@@ -27,12 +33,26 @@ public:
            int prioridade, std::vector<int> lista_eventos);
     ~Tarefa();
 
+    // Atributos fixos
     int         getID()         const;
     std::string getCorHex()     const;
     int         getIngresso()   const;
     int         getDuracao()    const;
     int         getPrioridade() const;
 
-    void        registrarEstadoNoTempo(int instanteTempo, EstadoTarefa novoEstado);
-    EstadoTarefa buscarEstadoNoTempo(int instanteTempo) const;
+    // Estado corrente (leitura)
+    EstadoTarefa getEstadoAtual()    const;
+    int          getTempoRestante()   const;
+    int          getQuantumRestante() const;
+
+    // Estado corrente (escrita — usada pelo motor e pela edição manual)
+    void setEstadoAtual(EstadoTarefa estado);
+    void setTempoRestante(int t);
+    void setQuantumRestante(int q);
+    void decrementarTempoRestante();
+    void decrementarQuantumRestante();
+
+    // Histórico por tick
+    void         registrarEstadoNoTempo(int tick, EstadoTarefa estado);
+    EstadoTarefa buscarEstadoNoTempo(int tick) const;
 };

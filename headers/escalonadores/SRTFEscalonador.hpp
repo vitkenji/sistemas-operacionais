@@ -1,11 +1,13 @@
 #pragma once
 #include "escalonadores/Escalonador.hpp"
 
-class SRTFEscalonador : public Escalonador
-{
+class SRTFEscalonador : public Escalonador {
 public:
-    SRTFEscalonador();
-    ~SRTFEscalonador();
+    SRTFEscalonador()  = default;
+    ~SRTFEscalonador() override = default;
 
-    void atualizarTarefas(std::vector<Tarefa>& tarefas, int tempoAtual);
+    std::map<int, int> escalonar(
+        const std::vector<Tarefa>& tarefas,
+        const std::vector<CPU>&    cpus,
+        int tempoAtual) override;
 };

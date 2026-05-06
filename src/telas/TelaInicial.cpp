@@ -4,25 +4,32 @@
 
 #include <string>
 
-// Converte string hex "RRGGBB" em ImVec4 para uso no ImGui
 static ImVec4 hexParaImVec4(const std::string& hex)
 {
-    if (hex.size() < 6)
-        return ImVec4(1.f, 1.f, 1.f, 1.f);
+    if (hex.size() < 6) return ImVec4(1.f, 1.f, 1.f, 1.f);
     try {
         unsigned r = std::stoul(hex.substr(0, 2), nullptr, 16);
         unsigned g = std::stoul(hex.substr(2, 2), nullptr, 16);
         unsigned b = std::stoul(hex.substr(4, 2), nullptr, 16);
         return ImVec4(r / 255.f, g / 255.f, b / 255.f, 1.f);
-    } catch (...) {
-        return ImVec4(1.f, 1.f, 1.f, 1.f);
-    }
+    } catch (...) { return ImVec4(1.f, 1.f, 1.f, 1.f); }
 }
 
 TelaInicial::TelaInicial()
 {
     caminhoArquivo[0] = '\0';
     tentouCarregar    = false;
+    simulacaoIniciada = false;
+}
+
+bool TelaInicial::isSimulacaoIniciada() const { return simulacaoIniciada; }
+
+void TelaInicial::resetar()
+{
+    ultimaConfig      = ConfigSimulacao{};
+    tentouCarregar    = false;
+    simulacaoIniciada = false;
+    GerenciadorTarefa::resetar();
 }
 
 void TelaInicial::processarImportacao()
@@ -78,14 +85,12 @@ void TelaInicial::desenharResultado()
     ImGui::Separator();
     ImGui::Spacing();
 
-    // Resumo da configuração
     ImGui::Text("Algoritmo : %s", ultimaConfig.algoritmo.c_str());
     ImGui::Text("Quantum   : %d tick(s)", ultimaConfig.quantum);
     ImGui::Text("CPUs      : %d", ultimaConfig.qtde_cpus);
     ImGui::Text("Tarefas   : %d", static_cast<int>(ultimaConfig.tarefas.size()));
     ImGui::Spacing();
 
-    // Tabela de tarefas
     ImGui::Text("Tarefas carregadas:");
     if (ImGui::BeginTable("tabelaTarefas", 6,
             ImGuiTableFlags_Borders    |
@@ -110,7 +115,7 @@ void TelaInicial::desenharResultado()
             ImGui::Text("%d", t.getID());
 
             ImGui::TableSetColumnIndex(1);
-            ImVec4 cor   = hexParaImVec4(t.getCorHex());
+            ImVec4 cor = hexParaImVec4(t.getCorHex());
             std::string btnId = "##cor" + std::to_string(t.getID());
             ImGui::ColorButton(btnId.c_str(), cor,
                                ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel,
@@ -147,6 +152,6 @@ void TelaInicial::desenharResultado()
 
     if (ImGui::Button("Iniciar Simulacao >>", ImVec2(180, 0))) {
         GerenciadorTarefa::configurar(ultimaConfig);
-        // TODO (passo 2): transicionar para a tela de simulacao
+        simulacaoIniciada = true;
     }
 }
