@@ -1,11 +1,13 @@
 #pragma once
 #include "escalonadores/Escalonador.hpp"
 
-class PriopEscalonador : public Escalonador
-{
+class PriopEscalonador : public Escalonador {
 public:
-    PriopEscalonador();
-    ~PriopEscalonador();
+    PriopEscalonador()  = default;
+    ~PriopEscalonador() override = default;
 
-    void atualizarTarefas(std::vector<Tarefa>& tarefas, int tempoAtual);
+    std::map<int, int> escalonar(
+        const std::vector<Tarefa>& tarefas,
+        const std::vector<CPU>&    cpus,
+        int tempoAtual) override;
 };

@@ -1,36 +1,34 @@
 #include "gerenciadores/GerenciadorGrafico.hpp"
 #include "gerenciadores/GerenciadorTarefa.hpp"
 #include "telas/TelaInicial.hpp"
-#include "tarefa/tarefa.hpp"
-#include "imgui.h" // Apenas para o ImGui::ShowDemoWindow();
-#include <iostream>
-#include <vector>
+#include "telas/TelaSimulacao.hpp"
 
-int main() {
-    GerenciadorGrafico gerenciadorGrafico(1280, 720, "Meu Projeto ImGui");
+int main()
+{
+    GerenciadorGrafico gerenciadorGrafico(1280, 720, "Simulador SO Multitarefa");
 
-    if (!gerenciadorGrafico.inicializar()) {
+    if (!gerenciadorGrafico.inicializar())
         return -1;
-    }
 
-    // Instancia a sua nova tela
-    TelaInicial telaInicial;
-
-    // ... lógica de tarefas aqui ...
+    TelaInicial   telaInicial;
+    TelaSimulacao telaSimulacao;
 
     while (!gerenciadorGrafico.janelaDeveFechar()) {
-        
-        // ... lógica de avanço de tempo do gerenciador de tarefas ...
-
         gerenciadorGrafico.processarEventos();
         gerenciadorGrafico.iniciarFrame();
 
-        // --- INTERFACE GRÁFICA ---
-        // Em vez do ImGui::ShowDemoWindow();, você chama a sua tela:
-        telaInicial.desenhar();
+        if (!telaInicial.isSimulacaoIniciada()) {
+            telaInicial.desenhar();
+        } else {
+            GerenciadorTarefa* g = GerenciadorTarefa::getInstance();
+            bool voltar = telaSimulacao.desenhar(g);
+            if (voltar)
+                telaInicial.resetar();
+        }
 
         gerenciadorGrafico.renderizar();
     }
 
+    GerenciadorTarefa::resetar();
     return 0;
 }

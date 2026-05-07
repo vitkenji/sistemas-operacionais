@@ -1,81 +1,51 @@
 #include "escalonadores/PriopEscalonador.hpp"
+#include <set>
 
-#include <cstdlib>
-#include <ctime>
-#include <iostream>
-
-PriopEscalonador::PriopEscalonador()
+// Critérios de desempate (passo 3 implementa a lógica completa de PRIOp):
+// Para CPUs livres: atribui a tarefa Pronta com maior prioridade.
+// Não preempta tarefas em execução — a preempção voluntária vem no passo 3.
+std::map<int, int> PriopEscalonador::escalonar(
+    const std::vector<Tarefa>& tarefas,
+    const std::vector<CPU>&    cpus,
+    int /*tempoAtual*/)
 {
-    std::srand(std::time(nullptr));
-}
+    std::map<int, int> resultado;
+    std::set<int> jaAtribuidos;
 
-PriopEscalonador::~PriopEscalonador() = default;
+    // Tarefas elegíveis (Pronta)
+    std::vector<const Tarefa*> prontas;
+    for (const auto& t : tarefas)
+        if (t.getEstadoAtual() == EstadoTarefa::Pronta)
+            prontas.push_back(&t);
 
-void PriopEscalonador::atualizarTarefas(std::vector<Tarefa>& tarefas, int tempoAtual)
-{
-    std::cout << "[Escalonador Priop] Ajustando tarefas para o tempo " << tempoAtual << "...\n";
-
-    // Logica ficticia de teste: percorre todas as tarefas e avanca o estado de cada uma.
-    for (std::vector<Tarefa>::iterator tarefa = tarefas.begin(); tarefa != tarefas.end(); ++tarefa)
-    {
-        EstadoTarefa estadoAnterior = tarefa->buscarEstadoNoTempo(tempoAtual - 1);
-        EstadoTarefa novoEstado = estadoAnterior;
-        int idTarefa = tarefa->getID();
-
-        if (estadoAnterior == EstadoTarefa::Nova)
-        {
-            novoEstado = EstadoTarefa::Pronta;
-            std::cout << "Tarefa " << idTarefa << ": Nova -> Pronta\n";
-        }
-        else if (estadoAnterior == EstadoTarefa::Pronta)
-        {
-            novoEstado = EstadoTarefa::Execucao;
-            std::cout << "Tarefa " << idTarefa << ": Pronta -> Execucao\n";
-        }
-        else if (estadoAnterior == EstadoTarefa::Execucao)
-        {
-            int chance = std::rand() % 100;
-
-            if (chance < 80)
-            {
-                novoEstado = EstadoTarefa::Suspensa;
-                std::cout << "Tarefa " << idTarefa << ": Execucao -> Suspensa\n";
-            }
-            else
-            {
-                novoEstado = EstadoTarefa::Terminada;
-                std::cout << "Tarefa " << idTarefa << ": Execucao -> Terminada\n";
-            }
-        }
-        else if (estadoAnterior == EstadoTarefa::Suspensa)
-        {
-            int quantidadeSuspensa = 0;
-            int tempoBusca = tempoAtual - 1;
-
-            while (tempoBusca >= 0 && tarefa->buscarEstadoNoTempo(tempoBusca) == EstadoTarefa::Suspensa)
-            {
-                quantidadeSuspensa++;
-                tempoBusca--;
-            }
-
-            if (quantidadeSuspensa >= 3)
-            {
-                novoEstado = EstadoTarefa::Pronta;
-                std::cout << "Tarefa " << idTarefa << ": Suspensa -> Pronta\n";
-            }
-            else
-            {
-                novoEstado = EstadoTarefa::Suspensa;
-                std::cout << "Tarefa " << idTarefa << ": Suspensa -> Suspensa ("
-                          << quantidadeSuspensa << "/3)\n";
-            }
-        }
-        else if (estadoAnterior == EstadoTarefa::Terminada)
-        {
-            novoEstado = EstadoTarefa::Terminada;
-            std::cout << "Tarefa " << idTarefa << ": Terminada -> Terminada\n";
+    for (const auto& cpu : cpus) {
+        if (cpu.tarefaAtualID != -1) {
+            // CPU já ocupada: mantém a tarefa atual (sem preempção voluntária neste stub)
+            resultado[cpu.id] = cpu.tarefaAtualID;
+            jaAtribuidos.insert(cpu.tarefaAtualID);
+            continue;
         }
 
-        tarefa->registrarEstadoNoTempo(tempoAtual, novoEstado);
+        // CPU livre: escolhe melhor tarefa pronta
+        resultado[cpu.id] = -1;
+
+        const Tarefa* melhor = nullptr;
+        for (const Tarefa* t : prontas) {
+            if (jaAtribuidos.count(t->getID())) continue;
+            if (melhor == nullptr
+                || t->getPrioridade() > melhor->getPrioridade()
+                || (t->getPrioridade() == melhor->getPrioridade()
+                    && t->getIngresso() < melhor->getIngresso()))
+            {
+                melhor = t;
+            }
+        }
+
+        if (melhor) {
+            resultado[cpu.id] = melhor->getID();
+            jaAtribuidos.insert(melhor->getID());
+        }
     }
+
+    return resultado;
 }
