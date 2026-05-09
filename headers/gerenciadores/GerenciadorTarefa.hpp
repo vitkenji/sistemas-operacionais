@@ -55,9 +55,11 @@ public:
     bool isSimulacaoCompleta() const;
 
     // Leitura de estado
-    int                        getTickAtual()  const;
-    int                        getQuantum()    const;
-    int                        getQtdeCpus()   const;
-    const std::vector<CPU>&    getCPUs()       const;
-    const std::vector<Tarefa>& getTarefas()    const;
+    int                              getTickAtual()   const;
+    int                              getQuantum()     const;
+    int                              getQtdeCpus()    const;
+    const std::vector<CPU>&          getCPUs()        const;
+    const std::vector<Tarefa>&       getTarefas()     const;
+    // historico[0] = estado inicial; historico[T] = estado após tick T
+    const std::vector<EstadoSistema>& getHistorico()  const;
 };

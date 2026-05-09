@@ -22,6 +22,13 @@ int main()
         } else {
             GerenciadorTarefa* g = GerenciadorTarefa::getInstance();
             bool voltar = telaSimulacao.desenhar(g);
+
+            // Repassa pedido de exportação ao GerenciadorGrafico ANTES de renderizar,
+            // para que a captura ocorra no mesmo frame (entre RenderDrawData e SwapBuffers).
+            std::string pngPath = telaSimulacao.consumirPedidoExportacao();
+            if (!pngPath.empty())
+                gerenciadorGrafico.pedirCaptura(pngPath);
+
             if (voltar)
                 telaInicial.resetar();
         }

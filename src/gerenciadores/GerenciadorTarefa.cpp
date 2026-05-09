@@ -282,8 +282,9 @@ Escalonador* GerenciadorTarefa::criarEscalonador(const std::string& tipo)
 
 // ─── Getters ─────────────────────────────────────────────────────────────────
 
-int                        GerenciadorTarefa::getTickAtual()  const { return tickAtual; }
-int                        GerenciadorTarefa::getQuantum()    const { return quantum; }
-int                        GerenciadorTarefa::getQtdeCpus()   const { return (int)cpus.size(); }
-const std::vector<CPU>&    GerenciadorTarefa::getCPUs()       const { return cpus; }
-const std::vector<Tarefa>& GerenciadorTarefa::getTarefas()    const { return listaTarefas; }
+int                               GerenciadorTarefa::getTickAtual()  const { return tickAtual; }
+int                               GerenciadorTarefa::getQuantum()    const { return quantum; }
+int                               GerenciadorTarefa::getQtdeCpus()   const { return (int)cpus.size(); }
+const std::vector<CPU>&           GerenciadorTarefa::getCPUs()       const { return cpus; }
+const std::vector<Tarefa>&        GerenciadorTarefa::getTarefas()    const { return listaTarefas; }
+const std::vector<EstadoSistema>& GerenciadorTarefa::getHistorico()  const { return historico; }

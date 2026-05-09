@@ -46,7 +46,7 @@ bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
 {
     bool voltar = false;
 
-    ImGui::SetNextWindowSize(ImVec2(860, 600), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(1020, 780), ImGuiCond_FirstUseEver);
 
     char titulo[64];
     std::snprintf(titulo, sizeof(titulo), "Simulacao  |  Tick %d###SimWin", g->getTickAtual());
@@ -57,6 +57,10 @@ bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
     ImGui::Separator();
     ImGui::Spacing();
     desenharTabelaTarefas(g);
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    desenharGantt(g);
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -195,11 +199,20 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
     ImGui::EndTable();
 }
 
+// ─── Gráfico de Gantt ────────────────────────────────────────────────────────
+
+void TelaSimulacao::desenharGantt(GerenciadorTarefa* g)
+{
+    ImGui::Text("Grafico de Gantt");
+    ImGui::Spacing();
+    gantt.desenhar(g);
+}
+
 // ─── Controles ────────────────────────────────────────────────────────────────
 
 void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 {
-    // Botão Voltar
+    // ── Linha 1: navegação ────────────────────────────────────────────────────
     if (ImGui::Button("< Voltar", ImVec2(90, 0)))
         voltar = true;
 
@@ -207,7 +220,6 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
     ImGui::Text("|");
     ImGui::SameLine();
 
-    // Retroceder
     ImGui::BeginDisabled(!g->podeRetroceder());
     if (ImGui::Button("<< Retroceder", ImVec2(120, 0)))
         g->retroceder();
@@ -215,7 +227,6 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::SameLine();
 
-    // Avançar
     ImGui::BeginDisabled(!g->podeAvancar());
     if (ImGui::Button("Avancar >>", ImVec2(110, 0)))
         g->avancar();
@@ -223,13 +234,12 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::SameLine();
 
-    // Executar completo
     ImGui::BeginDisabled(!g->podeAvancar());
     if (ImGui::Button("Executar Completo >>|", ImVec2(170, 0)))
         g->executarCompleto();
     ImGui::EndDisabled();
 
-    // Mensagem de status
+    // ── Status da simulação ───────────────────────────────────────────────────
     ImGui::Spacing();
     if (g->isSimulacaoCompleta()) {
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
@@ -238,4 +248,44 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
         ImGui::TextDisabled("Tick %d  |  Use 'Avancar >>' para prosseguir passo a passo.",
                             g->getTickAtual());
     }
+
+    // ── Linha 2: exportação de PNG (req. 2.4) — habilitado só ao terminar ────
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    static char exportPath[256] = "gantt.png";
+    ImGui::SetNextItemWidth(220.f);
+    ImGui::InputText("##exportpath", exportPath, sizeof(exportPath));
+    ImGui::SameLine();
+
+    ImGui::BeginDisabled(!g->isSimulacaoCompleta());
+    if (ImGui::Button("Exportar PNG", ImVec2(120, 0))) {
+        flagExportarPNG   = true;
+        ultimaExportacao  = exportPath;
+        framesNotificacao = 180;  // ~3 s a 60 fps
+    }
+    ImGui::EndDisabled();
+
+    if (!g->isSimulacaoCompleta()) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(disponivel ao fim da simulacao)");
+    }
+
+    // Notificação temporária após exportar
+    if (framesNotificacao > 0) {
+        --framesNotificacao;
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
+                           "Exportado: %s", ultimaExportacao.c_str());
+    }
+}
+
+// ─── Exportação ───────────────────────────────────────────────────────────────
+
+std::string TelaSimulacao::consumirPedidoExportacao()
+{
+    if (!flagExportarPNG) return "";
+    flagExportarPNG = false;
+    return ultimaExportacao;
 }

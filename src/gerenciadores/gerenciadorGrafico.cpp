@@ -5,7 +5,13 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 
+// stb_image_write — biblioteca de escrita de PNG (header-only, implementação aqui)
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+#include <cstring>
 #include <iostream>
+#include <vector>
 
 GerenciadorGrafico::GerenciadorGrafico(int largura, int altura, const std::string& titulo)
     : largura(largura), altura(altura), titulo(titulo), window(nullptr) {}
@@ -62,7 +68,7 @@ void GerenciadorGrafico::iniciarFrame() {
 void GerenciadorGrafico::renderizar() {
     // Renderiza a interface do ImGui
     ImGui::Render();
-    
+
     // Atualiza o viewport e limpa a tela de fundo
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -73,8 +79,38 @@ void GerenciadorGrafico::renderizar() {
     // Desenha os dados do ImGui na tela
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
+    // Captura do framebuffer ANTES do swap: o back-buffer contém o frame completo.
+    if (!caminhoCaptura.empty()) {
+        capturarFramebuffer(caminhoCaptura, display_w, display_h);
+        caminhoCaptura.clear();
+    }
+
     // Troca os buffers da janela
     glfwSwapBuffers(window);
+}
+
+void GerenciadorGrafico::pedirCaptura(const std::string& caminho)
+{
+    caminhoCaptura = caminho;
+}
+
+void GerenciadorGrafico::capturarFramebuffer(const std::string& caminho, int w, int h)
+{
+    int stride = w * 4;
+    std::vector<unsigned char> pixels((size_t)(stride * h));
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+
+    // OpenGL: origem em baixo-esquerda → inverte linhas para o formato PNG (topo-esquerda)
+    std::vector<unsigned char> flipped((size_t)(stride * h));
+    for (int y = 0; y < h; ++y)
+        std::memcpy(flipped.data() + y * stride,
+                    pixels.data() + (h - 1 - y) * stride,
+                    (size_t)stride);
+
+    if (!stbi_write_png(caminho.c_str(), w, h, 4, flipped.data(), stride))
+        std::cerr << "[GerenciadorGrafico] Falha ao salvar PNG: " << caminho << '\n';
+    else
+        std::cout << "[GerenciadorGrafico] Gantt exportado: " << caminho << '\n';
 }
 
 void GerenciadorGrafico::limpar() {

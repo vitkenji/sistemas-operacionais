@@ -46,6 +46,7 @@ set(PROJECT_SOURCES
     src/algoritmos/SRTF.cpp
     src/telas/TelaInicial.cpp
     src/telas/TelaSimulacao.cpp
+    src/telas/GanttChart.cpp
 )
 
 # Cria o seu executável
