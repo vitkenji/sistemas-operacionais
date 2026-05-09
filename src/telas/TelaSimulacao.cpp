@@ -1,10 +1,15 @@
+// TelaSimulacao.cpp
+// Implementação da tela principal de simulação.
+// Veja TelaSimulacao.hpp para a estrutura geral da janela.
+
 #include "telas/TelaSimulacao.hpp"
 #include "imgui.h"
 
 #include <string>
 
-// ─── Helpers locais ───────────────────────────────────────────────────────────
+// ── Helpers locais ─────────────────────────────────────────────────────────────
 
+// Retorna o nome textual de um estado para exibição na tabela de tarefas.
 static const char* nomeEstado(EstadoTarefa e)
 {
     switch (e) {
@@ -17,6 +22,7 @@ static const char* nomeEstado(EstadoTarefa e)
     return "?";
 }
 
+// Retorna uma cor RGBA para cada estado, usada para colorir o texto na tabela.
 static ImVec4 corEstado(EstadoTarefa e)
 {
     switch (e) {
@@ -29,6 +35,7 @@ static ImVec4 corEstado(EstadoTarefa e)
     return ImVec4(1, 1, 1, 1);
 }
 
+// Converte string RGB hexadecimal ("F0E0D0") em ImVec4 normalizado [0,1].
 static ImVec4 hexParaImVec4(const std::string& hex)
 {
     if (hex.size() < 6) return ImVec4(1, 1, 1, 1);
@@ -40,14 +47,16 @@ static ImVec4 hexParaImVec4(const std::string& hex)
     } catch (...) { return ImVec4(1, 1, 1, 1); }
 }
 
-// ─── Ponto de entrada ─────────────────────────────────────────────────────────
+// ── Ponto de entrada ───────────────────────────────────────────────────────────
 
+// Desenha a janela completa da simulação. Retorna true quando o usuário clica em "Voltar".
 bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
 {
     bool voltar = false;
 
     ImGui::SetNextWindowSize(ImVec2(1020, 780), ImGuiCond_FirstUseEver);
 
+    // Título dinâmico mostra o tick atual para o usuário saber onde está na simulação
     char titulo[64];
     std::snprintf(titulo, sizeof(titulo), "Simulacao  |  Tick %d###SimWin", g->getTickAtual());
     ImGui::Begin(titulo);
@@ -70,8 +79,10 @@ bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
     return voltar;
 }
 
-// ─── Painel de CPUs ───────────────────────────────────────────────────────────
+// ── Painel de CPUs ─────────────────────────────────────────────────────────────
 
+// Exibe um bloco colorido por CPU: vermelho escuro = desligada, cinza = ociosa,
+// cor da tarefa = executando (com ID da tarefa e tempo restante).
 void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
 {
     ImGui::Text("CPUs  (quantum = %d)", g->getQuantum());
@@ -81,18 +92,19 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
     const auto& tarefas = g->getTarefas();
 
     for (const auto& cpu : cpus) {
-        // Caixa colorida por status
         ImVec4 cor;
         std::string label;
 
         if (!cpu.ligada) {
+            // CPU desligada: sem tarefas disponíveis no sistema (req. 1.2)
             cor   = ImVec4(0.2f, 0.2f, 0.2f, 1.f);
             label = "DESLIGADA";
         } else if (cpu.tarefaAtualID == -1) {
+            // CPU ligada mas ociosa: há tarefas no sistema mas nenhuma pronta agora
             cor   = ImVec4(0.4f, 0.4f, 0.4f, 1.f);
             label = "OCIOSA";
         } else {
-            // Encontra cor da tarefa
+            // CPU executando uma tarefa: usa a cor configurada para ela
             cor = ImVec4(0.3f, 0.8f, 0.3f, 1.f);
             for (const auto& t : tarefas) {
                 if (t.getID() == cpu.tarefaAtualID) {
@@ -119,14 +131,17 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
     ImGui::NewLine();
 }
 
-// ─── Tabela de tarefas ────────────────────────────────────────────────────────
+// ── Tabela de tarefas ──────────────────────────────────────────────────────────
 
+// Exibe uma tabela com o estado corrente de cada tarefa e um combo para edição manual (req. 3.4).
+// O combo permite mudar o estado de qualquer tarefa em qualquer passo da simulação;
+// a mudança invalida o histórico futuro para recalcular a partir do novo estado.
 void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
 {
     ImGui::Text("Tarefas");
     ImGui::Spacing();
 
-    // Nomes dos estados para o combo de edição manual
+    // Nomes dos estados no mesmo índice que o enum EstadoTarefa
     static const char* estados[] = {"Nova","Pronta","Em Execucao","Suspensa","Terminada"};
 
     if (!ImGui::BeginTable("tblTarefas", 8,
@@ -169,6 +184,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
         ImGui::Text("%d", t.getTempoRestante());
 
         ImGui::TableSetColumnIndex(4);
+        // Quantum só faz sentido quando a tarefa está em execução
         if (t.getEstadoAtual() == EstadoTarefa::Execucao)
             ImGui::Text("%d", t.getQuantumRestante());
         else
@@ -176,6 +192,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
 
         ImGui::TableSetColumnIndex(5);
         {
+            // Mostra qual CPU está executando esta tarefa (ou "--" se nenhuma)
             int cpuId = -1;
             for (const auto& cpu : cpus)
                 if (cpu.tarefaAtualID == t.getID()) { cpuId = cpu.id; break; }
@@ -186,7 +203,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
         ImGui::TableSetColumnIndex(6);
         ImGui::Text("%d", t.getPrioridade());
 
-        // Edição manual do estado
+        // Combo de edição manual do estado (req. 3.4)
         ImGui::TableSetColumnIndex(7);
         int estadoIdx = static_cast<int>(t.getEstadoAtual());
         std::string comboId = "##edit" + std::to_string(t.getID());
@@ -199,7 +216,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
     ImGui::EndTable();
 }
 
-// ─── Gráfico de Gantt ────────────────────────────────────────────────────────
+// ── Gráfico de Gantt ───────────────────────────────────────────────────────────
 
 void TelaSimulacao::desenharGantt(GerenciadorTarefa* g)
 {
@@ -208,11 +225,12 @@ void TelaSimulacao::desenharGantt(GerenciadorTarefa* g)
     gantt.desenhar(g);
 }
 
-// ─── Controles ────────────────────────────────────────────────────────────────
+// ── Controles ──────────────────────────────────────────────────────────────────
 
+// Painel inferior com botões de navegação (req. 1.5), status e exportação PNG (req. 2.4).
 void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 {
-    // ── Linha 1: navegação ────────────────────────────────────────────────────
+    // ── Linha 1: navegação passo-a-passo ──────────────────────────────────────
     if (ImGui::Button("< Voltar", ImVec2(90, 0)))
         voltar = true;
 
@@ -234,12 +252,13 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::SameLine();
 
+    // Execução completa: avança até o fim sem mostrar passos intermediários (req. 1.5.3)
     ImGui::BeginDisabled(!g->podeAvancar());
     if (ImGui::Button("Executar Completo >>|", ImVec2(170, 0)))
         g->executarCompleto();
     ImGui::EndDisabled();
 
-    // ── Status da simulação ───────────────────────────────────────────────────
+    // ── Status da simulação ────────────────────────────────────────────────────
     ImGui::Spacing();
     if (g->isSimulacaoCompleta()) {
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
@@ -249,7 +268,8 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
                             g->getTickAtual());
     }
 
-    // ── Linha 2: exportação de PNG (req. 2.4) — habilitado só ao terminar ────
+    // ── Exportação PNG (req. 2.4) ──────────────────────────────────────────────
+    // Habilitado apenas ao final da simulação para garantir que o Gantt está completo.
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
@@ -263,7 +283,7 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
     if (ImGui::Button("Exportar PNG", ImVec2(120, 0))) {
         flagExportarPNG   = true;
         ultimaExportacao  = exportPath;
-        framesNotificacao = 180;  // ~3 s a 60 fps
+        framesNotificacao = 180;  // exibe confirmação por ~3 s a 60 fps
     }
     ImGui::EndDisabled();
 
@@ -272,7 +292,7 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
         ImGui::TextDisabled("(disponivel ao fim da simulacao)");
     }
 
-    // Notificação temporária após exportar
+    // Notificação temporária de exportação bem-sucedida
     if (framesNotificacao > 0) {
         --framesNotificacao;
         ImGui::SameLine();
@@ -281,8 +301,10 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
     }
 }
 
-// ─── Exportação ───────────────────────────────────────────────────────────────
+// ── Exportação ────────────────────────────────────────────────────────────────
 
+// Retorna o caminho do PNG pedido e limpa o flag. Deve ser chamado pelo main loop
+// após desenhar() para que o GerenciadorGrafico capture o framebuffer no mesmo frame.
 std::string TelaSimulacao::consumirPedidoExportacao()
 {
     if (!flagExportarPNG) return "";
