@@ -1,4 +1,4 @@
-#include "gerenciadores/GerenciadorGrafico.hpp"
+#include "gerenciadores/gerenciadorGrafico.hpp"
 
 // Dependências do ImGui
 #include "imgui.h"
