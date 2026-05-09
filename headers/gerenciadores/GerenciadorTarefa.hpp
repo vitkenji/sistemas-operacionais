@@ -27,7 +27,7 @@ private:
     // Motor
     void          computarProximoTick();
     void          aplicarEstado(const EstadoSistema& estado);
-    EstadoSistema buildSnapshot() const;
+    EstadoSistema buildSnapshot(const std::vector<int>& sorteadas = {}) const;
     bool          todasTerminadas() const;
     bool          hasTarefaProntaOuExecutando() const;
     int           tickLimite() const;

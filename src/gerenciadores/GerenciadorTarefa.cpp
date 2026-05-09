@@ -136,10 +136,10 @@ void GerenciadorTarefa::computarProximoTick()
             t.setEstadoAtual(EstadoTarefa::Pronta);
 
     // 4. Chama o escalonador com o estado completo atual
-    std::map<int, int> novaAlocacao = pEscalonador->escalonar(listaTarefas, cpus, T);
+    ResultadoEscalonamento res = pEscalonador->escalonar(listaTarefas, cpus, T);
 
-    // 5. Aplica decisões do escalonador (detecta preempções voluntárias)
-    for (auto& [cpuId, tarefaId] : novaAlocacao) {
+    // 5. Aplica decisões do escalonador (preempções reais e novas atribuições)
+    for (auto& [cpuId, tarefaId] : res.alocacao) {
         CPU* cpu = findCPU(cpuId);
         if (!cpu) continue;
 
@@ -183,10 +183,10 @@ void GerenciadorTarefa::computarProximoTick()
     for (auto& t : listaTarefas)
         t.registrarEstadoNoTempo(T, t.getEstadoAtual());
 
-    // 8. Avança clock e salva snapshot
+    // 8. Avança clock e salva snapshot (inclui tarefas sorteadas para o Gantt)
     tickAtual = T;
     if (todasTerminadas()) simulacaoCompleta = true;
-    historico.push_back(buildSnapshot());
+    historico.push_back(buildSnapshot(res.sorteadas));
 }
 
 void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
@@ -210,10 +210,11 @@ void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
     simulacaoCompleta = (tickAtual == (int)historico.size() - 1) && todasTerminadas();
 }
 
-EstadoSistema GerenciadorTarefa::buildSnapshot() const
+EstadoSistema GerenciadorTarefa::buildSnapshot(const std::vector<int>& sorteadas) const
 {
     EstadoSistema snap;
     snap.tempoClock = tickAtual;
+    snap.sorteadas  = sorteadas;
 
     for (const auto& t : listaTarefas)
         snap.tarefas.push_back({t.getID(), t.getEstadoAtual(),

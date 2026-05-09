@@ -17,4 +17,6 @@ struct EstadoSistema {
     std::map<int, int>          alocacaoCPU;  // cpu_id → tarefa_id (-1 = sem tarefa)
     std::map<int, bool>         cpuLigada;    // cpu_id → está ligada?
     std::vector<SnapshotTarefa> tarefas;
+    // IDs das tarefas cujo empate foi resolvido por sorteio neste tick (para ícone no Gantt)
+    std::vector<int>            sorteadas;
 };
