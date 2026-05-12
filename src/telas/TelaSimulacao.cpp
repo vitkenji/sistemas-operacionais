@@ -46,11 +46,18 @@ bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
 {
     bool voltar = false;
 
-    ImGui::SetNextWindowSize(ImVec2(1020, 780), ImGuiCond_FirstUseEver);
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(io.DisplaySize);
 
     char titulo[64];
     std::snprintf(titulo, sizeof(titulo), "Simulacao  |  Tick %d###SimWin", g->getTickAtual());
-    ImGui::Begin(titulo);
+    ImGui::Begin(titulo, nullptr,
+                 ImGuiWindowFlags_NoTitleBar  |
+                 ImGuiWindowFlags_NoResize    |
+                 ImGuiWindowFlags_NoMove      |
+                 ImGuiWindowFlags_NoCollapse  |
+                 ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     desenharPainelCPUs(g);
     ImGui::Spacing();

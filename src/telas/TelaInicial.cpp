@@ -40,8 +40,15 @@ void TelaInicial::processarImportacao()
 
 void TelaInicial::desenhar()
 {
-    ImGui::SetNextWindowSize(ImVec2(720, 520), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Simulador de SO - Configuracao");
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(io.DisplaySize);
+    ImGui::Begin("Simulador de SO - Configuracao", nullptr,
+                 ImGuiWindowFlags_NoTitleBar  |
+                 ImGuiWindowFlags_NoResize    |
+                 ImGuiWindowFlags_NoMove      |
+                 ImGuiWindowFlags_NoCollapse  |
+                 ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     if (!ultimaConfig.valida)
         desenharFormulario();
