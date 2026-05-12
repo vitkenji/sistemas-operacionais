@@ -140,7 +140,7 @@ void TelaInicial::desenharResultado()
             ImGui::Text("%d", t.getPrioridade());
 
             ImGui::TableSetColumnIndex(5);
-            ImGui::TextDisabled("(Projeto B)");
+            ImGui::TextDisabled(".");
         }
 
         ImGui::EndTable();

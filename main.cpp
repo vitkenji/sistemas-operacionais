@@ -5,7 +5,7 @@
 
 int main()
 {
-    GerenciadorGrafico gerenciadorGrafico(1280, 720, "Simulador SO Multitarefa");
+    GerenciadorGrafico gerenciadorGrafico(1280, 720, "SO");
 
     if (!gerenciadorGrafico.inicializar())
         return -1;
