@@ -3,7 +3,7 @@
 #include <map>
 #include <vector>
 
-// Snapshot do estado de uma tarefa em um instante — usado para undo/redo
+// Snapshot do estado de uma tarefa em um instante — componente do EstadoSistema.
 struct SnapshotTarefa {
     int          id;
     EstadoTarefa estado;
@@ -11,7 +11,10 @@ struct SnapshotTarefa {
     int          quantumRestante;
 };
 
-// Snapshot completo do sistema após um tick — armazenado no histórico
+// Snapshot completo do sistema após um tick.
+// O vetor GerenciadorTarefa::historico é uma sequência de EstadoSistema,
+// onde historico[T] representa o estado do sistema após T ticks executados.
+// Navegar pelo histórico (undo/redo) equivale a restaurar um desses snapshots.
 struct EstadoSistema {
     int                         tempoClock;
     std::map<int, int>          alocacaoCPU;  // cpu_id → tarefa_id (-1 = sem tarefa)
