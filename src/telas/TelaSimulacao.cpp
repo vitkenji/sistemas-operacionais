@@ -3,8 +3,6 @@
 
 #include <string>
 
-// ─── Helpers locais ───────────────────────────────────────────────────────────
-
 static const char* nomeEstado(EstadoTarefa e)
 {
     switch (e) {
@@ -40,17 +38,23 @@ static ImVec4 hexParaImVec4(const std::string& hex)
     } catch (...) { return ImVec4(1, 1, 1, 1); }
 }
 
-// ─── Ponto de entrada ─────────────────────────────────────────────────────────
-
+// ponto de entrada 
 bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
 {
     bool voltar = false;
 
-    ImGui::SetNextWindowSize(ImVec2(860, 600), ImGuiCond_FirstUseEver);
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(io.DisplaySize);
 
     char titulo[64];
     std::snprintf(titulo, sizeof(titulo), "Simulacao  |  Tick %d###SimWin", g->getTickAtual());
-    ImGui::Begin(titulo);
+    ImGui::Begin(titulo, nullptr,
+                 ImGuiWindowFlags_NoTitleBar  |
+                 ImGuiWindowFlags_NoResize    |
+                 ImGuiWindowFlags_NoMove      |
+                 ImGuiWindowFlags_NoCollapse  |
+                 ImGuiWindowFlags_NoBringToFrontOnFocus);
 
     desenharPainelCPUs(g);
     ImGui::Spacing();
@@ -60,14 +64,17 @@ bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
+    desenharGantt(g);
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
     desenharControles(g, voltar);
 
     ImGui::End();
     return voltar;
 }
 
-// ─── Painel de CPUs ───────────────────────────────────────────────────────────
-
+// painel de CPUs
 void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
 {
     ImGui::Text("CPUs  (quantum = %d)", g->getQuantum());
@@ -94,7 +101,7 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
                 if (t.getID() == cpu.tarefaAtualID) {
                     cor   = hexParaImVec4(t.getCorHex());
                     label = "T" + std::to_string(t.getID())
-                            + "  (" + std::to_string(t.getTempoRestante()) + " restam)";
+                            + "(restam: " + std::to_string(t.getTempoRestante()) + ")";
                     break;
                 }
             }
@@ -115,14 +122,13 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
     ImGui::NewLine();
 }
 
-// ─── Tabela de tarefas ────────────────────────────────────────────────────────
-
+// tabela de tarefas 
 void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
 {
     ImGui::Text("Tarefas");
     ImGui::Spacing();
 
-    // Nomes dos estados para o combo de edição manual
+    // nomes dos estados para o combo de edição manual
     static const char* estados[] = {"Nova","Pronta","Em Execucao","Suspensa","Terminada"};
 
     if (!ImGui::BeginTable("tblTarefas", 8,
@@ -182,7 +188,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
         ImGui::TableSetColumnIndex(6);
         ImGui::Text("%d", t.getPrioridade());
 
-        // Edição manual do estado
+        // edição manual do estado
         ImGui::TableSetColumnIndex(7);
         int estadoIdx = static_cast<int>(t.getEstadoAtual());
         std::string comboId = "##edit" + std::to_string(t.getID());
@@ -195,11 +201,16 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
     ImGui::EndTable();
 }
 
-// ─── Controles ────────────────────────────────────────────────────────────────
+// gantt
+void TelaSimulacao::desenharGantt(GerenciadorTarefa* g)
+{
+    ImGui::Spacing();
+    gantt.desenhar(g);
+}
 
 void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 {
-    // Botão Voltar
+    // navegação
     if (ImGui::Button("< Voltar", ImVec2(90, 0)))
         voltar = true;
 
@@ -207,7 +218,6 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
     ImGui::Text("|");
     ImGui::SameLine();
 
-    // Retroceder
     ImGui::BeginDisabled(!g->podeRetroceder());
     if (ImGui::Button("<< Retroceder", ImVec2(120, 0)))
         g->retroceder();
@@ -215,7 +225,6 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::SameLine();
 
-    // Avançar
     ImGui::BeginDisabled(!g->podeAvancar());
     if (ImGui::Button("Avancar >>", ImVec2(110, 0)))
         g->avancar();
@@ -223,19 +232,50 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::SameLine();
 
-    // Executar completo
     ImGui::BeginDisabled(!g->podeAvancar());
     if (ImGui::Button("Executar Completo >>|", ImVec2(170, 0)))
         g->executarCompleto();
     ImGui::EndDisabled();
 
-    // Mensagem de status
+    // status da simulação
     ImGui::Spacing();
     if (g->isSimulacaoCompleta()) {
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
-                           "Simulacao concluida! Todas as tarefas foram executadas.");
+                           "Simulação concluída.");
     } else {
         ImGui::TextDisabled("Tick %d  |  Use 'Avancar >>' para prosseguir passo a passo.",
                             g->getTickAtual());
     }
+
+    // exportação de PNG habilitado só ao terminar
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    static char exportPath[256] = "gantt.png";
+    ImGui::SetNextItemWidth(220.f);
+    ImGui::InputText("##exportpath", exportPath, sizeof(exportPath));
+    ImGui::SameLine();
+
+    ImGui::BeginDisabled(!g->isSimulacaoCompleta());
+    if (ImGui::Button("Exportar PNG", ImVec2(120, 0))) {
+        flagExportarPNG      = true;
+        exportacaoConcluida  = true;
+        ultimaExportacao     = exportPath;
+    }
+    ImGui::EndDisabled();
+
+    if (exportacaoConcluida) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
+                           "Exportado: %s", ultimaExportacao.c_str());
+    }
+}
+
+// exportacao 
+std::string TelaSimulacao::consumirPedidoExportacao()
+{
+    if (!flagExportarPNG) return "";
+    flagExportarPNG = false;
+    return ultimaExportacao;
 }

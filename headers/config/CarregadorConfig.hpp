@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 
-// Resultado da leitura do arquivo de configuração.
-// Verificar 'valida' antes de usar os demais campos.
+// parse do txt
+// verificar 'valida' antes de usar os campos
 struct ConfigSimulacao {
-    std::string algoritmo;      // sempre em minúsculas: "srtf" ou "priop"
+    std::string algoritmo; 
     int quantum   = 1;
     int qtde_cpus = 2;
     std::vector<Tarefa> tarefas;
@@ -16,13 +16,13 @@ struct ConfigSimulacao {
 
 class CarregadorConfig {
 public:
-    // Lê e valida o arquivo de configuração no formato definido pelo enunciado.
-    // Retorna config.valida = false em caso de qualquer erro.
+    // le e valida o arquivo de configuração
+    // retorna config.valida = false em caso de qualquer erro.
     static ConfigSimulacao carregar(const std::string& caminho);
 
 private:
     static std::string              toLower(std::string s);
     static std::vector<std::string> split(const std::string& s, char delim);
-    // Eventos são separados por vírgula: "5,10,15" → {5, 10, 15}
+    // eventos sao separados por virgula
     static std::vector<int>         parseListaEventos(const std::string& s);
 };

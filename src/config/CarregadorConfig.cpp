@@ -21,7 +21,7 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
     while (std::getline(arquivo, linha)) {
         ++numeroLinha;
 
-        // Remove \r para compatibilidade com arquivos CRLF (Windows)
+        // remove \r para compatibilidade
         if (!linha.empty() && linha.back() == '\r')
             linha.pop_back();
 
@@ -31,30 +31,36 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
         std::vector<std::string> campos = split(linha, ';');
 
         if (primeiraLinha) {
-            // Formato linha 1: algoritmo_escalonamento;quantum;qtde_cpus
-            if (campos.size() < 3) {
-                config.erroMensagem = "Linha 1 invalida: esperado algoritmo;quantum;qtde_cpus";
+            // [algoritmo=priop][;quantum=1][;qtde_cpus=2]
+            // campo vazio usa o valor padrao; ex: ";;" aplica todos os padroes
+            config.algoritmo = toLower(campos[0]);
+            if (config.algoritmo.empty()) {
+                config.algoritmo = "priop";
+            } else if (config.algoritmo != "srtf" && config.algoritmo != "priop") {
+                config.erroMensagem = "Algoritmo invalido: '" + campos[0] +
+                    "'. Valores aceitos: SRTF, PRIOP";
                 return config;
             }
-            config.algoritmo = toLower(campos[0]);
             try {
-                config.quantum    = std::stoi(campos[1]);
-                config.qtde_cpus  = std::stoi(campos[2]);
+                if (campos.size() >= 2 && !campos[1].empty())
+                    config.quantum   = std::stoi(campos[1]);
+                if (campos.size() >= 3 && !campos[2].empty())
+                    config.qtde_cpus = std::stoi(campos[2]);
             } catch (...) {
                 config.erroMensagem = "Linha 1: quantum e qtde_cpus devem ser inteiros";
                 return config;
             }
             if (config.qtde_cpus < 2) {
-                config.erroMensagem = "qtde_cpus deve ser >= 2 (minimo exigido pelo enunciado)";
+                config.erroMensagem = "qtde_cpus deve ser >= 2";
                 return config;
             }
             primeiraLinha = false;
 
         } else {
-            // Formato linhas 2+: id;cor;ingresso;duracao;prioridade[;lista_eventos]
-            if (campos.size() < 5) {
+            // id;cor;ingresso;duracao[;prioridade=0][;lista_eventos]
+            if (campos.size() < 4) {
                 config.erroMensagem = "Linha " + std::to_string(numeroLinha) +
-                    " invalida: esperado id;cor;ingresso;duracao;prioridade[;lista_eventos]";
+                    " invalida: esperado id;cor;ingresso;duracao[;prioridade][;lista_eventos]";
                 return config;
             }
             try {
@@ -62,7 +68,10 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
                 std::string cor        = campos[1];
                 int         ingresso   = std::stoi(campos[2]);
                 int         duracao    = std::stoi(campos[3]);
-                int         prioridade = std::stoi(campos[4]);
+                int         prioridade = 0;
+
+                if (campos.size() >= 5 && !campos[4].empty())
+                    prioridade = std::stoi(campos[4]);
 
                 std::vector<int> eventos;
                 if (campos.size() > 5 && !campos[5].empty())

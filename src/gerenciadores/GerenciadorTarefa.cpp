@@ -1,16 +1,15 @@
 #include "gerenciadores/GerenciadorTarefa.hpp"
 #include "escalonadores/PriopEscalonador.hpp"
 #include "escalonadores/SRTFEscalonador.hpp"
-
 #include <algorithm>
 #include <numeric>
 
 GerenciadorTarefa* GerenciadorTarefa::instance = nullptr;
 
-// ─── Ciclo de vida estático ────────────────────────────────────────────────────
-
 GerenciadorTarefa* GerenciadorTarefa::getInstance() { return instance; }
 
+// cria a instância única a partir de uma configuração carregada do arquivo.
+// chamar configurar() duas vezes reinicia a simulação do zero.
 void GerenciadorTarefa::configurar(const ConfigSimulacao& config)
 {
     resetar();
@@ -23,8 +22,7 @@ void GerenciadorTarefa::resetar()
     instance = nullptr;
 }
 
-// ─── Construtor / destrutor ────────────────────────────────────────────────────
-
+// construtor / destrutor
 GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
     : pEscalonador(criarEscalonador(config.algoritmo)),
       quantum(config.quantum),
@@ -35,14 +33,16 @@ GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
     for (int i = 0; i < config.qtde_cpus; ++i)
         cpus.push_back({i, -1, true});
 
-    // historico[0] = estado inicial (nenhum tick executado)
+    // historico[0] representa o estado antes de qualquer tick ser executado.
+    // a cada avanço, um novo snapshot é empilhado em historico[T].
     historico.push_back(buildSnapshot());
 }
 
 GerenciadorTarefa::~GerenciadorTarefa() { delete pEscalonador; }
 
-// ─── Navegação ────────────────────────────────────────────────────────────────
-
+// navegacao
+// podeAvancar() retorna true se há um tick futuro já calculado (redo) OU
+// se a simulação ainda não acabou (próximo tick será calculado sob demanda).
 bool GerenciadorTarefa::podeAvancar() const
 {
     return tickAtual < (int)historico.size() - 1 || !simulacaoCompleta;
@@ -55,10 +55,10 @@ bool GerenciadorTarefa::isSimulacaoCompleta() const
     return simulacaoCompleta && tickAtual == (int)historico.size() - 1;
 }
 
+// avança um tick
 void GerenciadorTarefa::avancar()
 {
     if (tickAtual < (int)historico.size() - 1) {
-        // Redo: restaura tick já calculado
         tickAtual++;
         aplicarEstado(historico[tickAtual]);
         return;
@@ -67,6 +67,8 @@ void GerenciadorTarefa::avancar()
     computarProximoTick();
 }
 
+// retrocede um tick restaurando o snapshot salvo em historico[tickAtual-1].
+// snapshots futuros permanecem no vetor, permitindo redo
 void GerenciadorTarefa::retroceder()
 {
     if (tickAtual <= 0) return;
@@ -74,6 +76,7 @@ void GerenciadorTarefa::retroceder()
     aplicarEstado(historico[tickAtual]);
 }
 
+// executa todos os ticks restantes de uma vez
 void GerenciadorTarefa::executarCompleto()
 {
     int limite = tickLimite();
@@ -81,14 +84,14 @@ void GerenciadorTarefa::executarCompleto()
         avancar();
 }
 
-// ─── Edição manual ────────────────────────────────────────────────────────────
-
+// edicao manual
+// snapshots futuros são descartados
 void GerenciadorTarefa::editarEstadoTarefa(int tarefaId, EstadoTarefa novoEstado)
 {
     Tarefa* t = findTarefa(tarefaId);
     if (!t) return;
 
-    // Se a tarefa estava em execução e vira outra coisa, libera a CPU
+    // se tarefa em execução vira outra coisa, libera CPU
     if (t->getEstadoAtual() == EstadoTarefa::Execucao
         && novoEstado != EstadoTarefa::Execucao)
     {
@@ -99,18 +102,19 @@ void GerenciadorTarefa::editarEstadoTarefa(int tarefaId, EstadoTarefa novoEstado
 
     t->setEstadoAtual(novoEstado);
 
-    // Invalida história futura — o usuário mudou o estado, novos ticks serão recalculados
+    // invalida história futura
     historico.resize(tickAtual + 1);
     simulacaoCompleta = false;
 }
 
-// ─── Motor de simulação ───────────────────────────────────────────────────────
-
+// calcula o que acontece no próximo tick
+// finalizações e preempções acontecem antes do
+// escalonador decidir quem entra, e os decrementos ocorrem só no final
 void GerenciadorTarefa::computarProximoTick()
 {
     int T = tickAtual + 1;
 
-    // 1. Tarefas que finalizaram ao final do tick anterior (tempoRestante chegou a 0)
+    // tarefas que finalizaram ao final do tick anterior
     for (auto& t : listaTarefas) {
         if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getTempoRestante() == 0) {
             t.setEstadoAtual(EstadoTarefa::Terminada);
@@ -120,7 +124,8 @@ void GerenciadorTarefa::computarProximoTick()
         }
     }
 
-    // 2. Preempção por quantum expirado (quantumRestante chegou a 0 no tick anterior)
+    // preempção por quantum expirado
+    // a tarefa volta para Pronta e a CPU é liberada
     for (auto& t : listaTarefas) {
         if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getQuantumRestante() == 0) {
             t.setEstadoAtual(EstadoTarefa::Pronta);
@@ -130,26 +135,25 @@ void GerenciadorTarefa::computarProximoTick()
         }
     }
 
-    // 3. Chegada de novas tarefas
+    // ingresso=0 fica pronta no tick 1, ingresso=1 no tick 2, etc.
     for (auto& t : listaTarefas)
-        if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() <= T)
+        if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() < T)
             t.setEstadoAtual(EstadoTarefa::Pronta);
 
-    // 4. Chama o escalonador com o estado completo atual
-    std::map<int, int> novaAlocacao = pEscalonador->escalonar(listaTarefas, cpus, T);
+    // chama o escalonador, que devolve mapa cpu_id -> tarefa_id para este tick, com o estado atual
+    ResultadoEscalonamento res = pEscalonador->escalonar(listaTarefas, cpus, T);
 
-    // 5. Aplica decisões do escalonador (detecta preempções voluntárias)
-    for (auto& [cpuId, tarefaId] : novaAlocacao) {
+    // aplica as decisões do escalonador: preempções e novas atribuições
+    for (auto& [cpuId, tarefaId] : res.alocacao) {
         CPU* cpu = findCPU(cpuId);
         if (!cpu) continue;
 
-        if (tarefaId == cpu->tarefaAtualID) {
-            // Mesma tarefa: verifica se quantum precisa ser reiniciado (nova atribuição após preempção)
-            // Se tarefaId == -1, CPU continua ociosa — não faz nada
+        if (tarefaId != -1 && tarefaId == cpu->tarefaAtualID) {
+            // mesma tarefa continua: quantum segue contando
             continue;
         }
 
-        // Tarefa mudou: preempção da tarefa anterior (se havia uma)
+        // tarefa mudou: preempta a tarefa anterior se havia uma rodando
         if (cpu->tarefaAtualID != -1) {
             Tarefa* anterior = findTarefa(cpu->tarefaAtualID);
             if (anterior && anterior->getEstadoAtual() == EstadoTarefa::Execucao)
@@ -159,19 +163,19 @@ void GerenciadorTarefa::computarProximoTick()
         cpu->tarefaAtualID = tarefaId;
 
         if (tarefaId == -1) {
-            // CPU sem tarefa neste tick: desliga se não há nada pronto
-            cpu->ligada = hasTarefaProntaOuExecutando();
+            // CPU sem tarefa: desliga
+            cpu->ligada = false;
         } else {
             Tarefa* nova = findTarefa(tarefaId);
             if (nova) {
                 nova->setEstadoAtual(EstadoTarefa::Execucao);
-                nova->setQuantumRestante(quantum);  // reseta quantum ao assumir CPU
+                nova->setQuantumRestante(quantum);  // reinicia o quantum a cada nova atribuição
                 cpu->ligada = true;
             }
         }
     }
 
-    // 6. Executa as tarefas deste tick (decrementa contadores)
+    // executa as tarefas deste tick: decrementa tempo restante e quantum restante
     for (auto& t : listaTarefas) {
         if (t.getEstadoAtual() == EstadoTarefa::Execucao) {
             t.decrementarTempoRestante();
@@ -179,16 +183,17 @@ void GerenciadorTarefa::computarProximoTick()
         }
     }
 
-    // 7. Registra estado de cada tarefa no Gráfico de Gantt
+    // registra o estado de cada tarefa no tick T
     for (auto& t : listaTarefas)
         t.registrarEstadoNoTempo(T, t.getEstadoAtual());
 
-    // 8. Avança clock e salva snapshot
+    // avança o relógio, verifica término e salva snapshot para undo/redo
     tickAtual = T;
     if (todasTerminadas()) simulacaoCompleta = true;
-    historico.push_back(buildSnapshot());
+    historico.push_back(buildSnapshot(res.sorteadas));
 }
 
+// restaura o estado do sistema a partir de um snapshot
 void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
 {
     for (const auto& snap : estado.tarefas) {
@@ -210,10 +215,12 @@ void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
     simulacaoCompleta = (tickAtual == (int)historico.size() - 1) && todasTerminadas();
 }
 
-EstadoSistema GerenciadorTarefa::buildSnapshot() const
+// constrói snapshot completo do estado atual do sistema.
+EstadoSistema GerenciadorTarefa::buildSnapshot(const std::vector<int>& sorteadas) const
 {
     EstadoSistema snap;
     snap.tempoClock = tickAtual;
+    snap.sorteadas  = sorteadas;
 
     for (const auto& t : listaTarefas)
         snap.tarefas.push_back({t.getID(), t.getEstadoAtual(),
@@ -227,8 +234,6 @@ EstadoSistema GerenciadorTarefa::buildSnapshot() const
     return snap;
 }
 
-// ─── Utilitários ──────────────────────────────────────────────────────────────
-
 bool GerenciadorTarefa::todasTerminadas() const
 {
     for (const auto& t : listaTarefas)
@@ -237,6 +242,7 @@ bool GerenciadorTarefa::todasTerminadas() const
     return !listaTarefas.empty();
 }
 
+// true se ainda há trabalho a fazer, usado para decidir se as CPUs devem ficar ligadas.
 bool GerenciadorTarefa::hasTarefaProntaOuExecutando() const
 {
     for (const auto& t : listaTarefas) {
@@ -247,6 +253,8 @@ bool GerenciadorTarefa::hasTarefaProntaOuExecutando() const
     return false;
 }
 
+// limite superior de segurança para executarCompleto(): soma de todas as durações
+// mais o maior ingresso, com margem extra para evitar loop infinito
 int GerenciadorTarefa::tickLimite() const
 {
     int soma = 0;
@@ -255,7 +263,6 @@ int GerenciadorTarefa::tickLimite() const
     int maxIngresso = 0;
     for (const auto& t : listaTarefas)
         maxIngresso = std::max(maxIngresso, t.getIngresso());
-    // Margem generosa para evitar loop infinito em caso de bug no escalonador
     return maxIngresso + soma + 10;
 }
 
@@ -276,13 +283,12 @@ CPU* GerenciadorTarefa::findCPU(int id)
 Escalonador* GerenciadorTarefa::criarEscalonador(const std::string& tipo)
 {
     if (tipo == "srtf")   return new SRTFEscalonador();
-    return new PriopEscalonador();  // padrão: "priop"
+    return new PriopEscalonador();
 }
 
-// ─── Getters ─────────────────────────────────────────────────────────────────
-
-int                        GerenciadorTarefa::getTickAtual()  const { return tickAtual; }
-int                        GerenciadorTarefa::getQuantum()    const { return quantum; }
-int                        GerenciadorTarefa::getQtdeCpus()   const { return (int)cpus.size(); }
-const std::vector<CPU>&    GerenciadorTarefa::getCPUs()       const { return cpus; }
-const std::vector<Tarefa>& GerenciadorTarefa::getTarefas()    const { return listaTarefas; }
+int                               GerenciadorTarefa::getTickAtual()  const { return tickAtual; }
+int                               GerenciadorTarefa::getQuantum()    const { return quantum; }
+int                               GerenciadorTarefa::getQtdeCpus()   const { return (int)cpus.size(); }
+const std::vector<CPU>&           GerenciadorTarefa::getCPUs()       const { return cpus; }
+const std::vector<Tarefa>&        GerenciadorTarefa::getTarefas()    const { return listaTarefas; }
+const std::vector<EstadoSistema>& GerenciadorTarefa::getHistorico()  const { return historico; }

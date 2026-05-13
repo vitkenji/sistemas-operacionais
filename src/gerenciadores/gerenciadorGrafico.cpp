@@ -1,11 +1,12 @@
-#include "gerenciadores/gerenciadorGrafico.hpp"
-
-// Dependências do ImGui
+#include "gerenciadores/GerenciadorGrafico.hpp"
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
-
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#include <cstring>
 #include <iostream>
+#include <vector>
 
 GerenciadorGrafico::GerenciadorGrafico(int largura, int altura, const std::string& titulo)
     : largura(largura), altura(altura), titulo(titulo), window(nullptr) {}
@@ -15,30 +16,40 @@ GerenciadorGrafico::~GerenciadorGrafico() {
 }
 
 bool GerenciadorGrafico::inicializar() {
-    // 1. Inicializa o GLFW
-    if (!glfwInit()) {
-        std::cerr << "Falha ao inicializar o GLFW!" << std::endl;
+    // inicializa glfw
+    if (!glfwInit())
+    {
+        std::cerr << "erro ao inicializar GLFW" << std::endl;
         return false;
     }
 
+    // define versao do opengl
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
+    // cria a instancia da janela
     window = glfwCreateWindow(largura, altura, titulo.c_str(), NULL, NULL);
-    if (!window) {
-        std::cerr << "Falha ao criar janela GLFW!" << std::endl;
+    
+    // verifica se a janela foi criada
+    if (!window)
+    {
+        std::cerr << "erro ao criar janela GLFW" << std::endl;
         glfwTerminate();
         return false;
     }
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Habilita V-Sync
 
-    // 2. Inicializa o contexto do ImGui
+    // define a janela como contexto atual
+    glfwMakeContextCurrent(window);
+    // habilita v-sync
+    glfwSwapInterval(1); 
+
+    // inicializa contexto do imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    // define tema escuro
     ImGui::StyleColorsDark();
 
-    // 3. Inicializa os Backends (GLFW + OpenGL3)
+    // vincula imgui ao glfw e opengl
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
@@ -46,35 +57,68 @@ bool GerenciadorGrafico::inicializar() {
 }
 
 bool GerenciadorGrafico::janelaDeveFechar() const {
+    // verifica se a janela deve ser fechada
     return glfwWindowShouldClose(window);
 }
 
 void GerenciadorGrafico::processarEventos() {
+    // processa inputs e eventos do sistema
     glfwPollEvents();
 }
 
 void GerenciadorGrafico::iniciarFrame() {
+    // prepara o inicio de um novo frame no imgui
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 }
 
 void GerenciadorGrafico::renderizar() {
-    // Renderiza a interface do ImGui
+    // renderiza interface
     ImGui::Render();
-    
-    // Atualiza o viewport e limpa a tela de fundo
+
+    // atualiza o viewport e limpa a tela de fundo
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
     glViewport(0, 0, display_w, display_h);
     glClearColor(0.45f, 0.55f, 0.60f, 1.00f);
     glClear(GL_COLOR_BUFFER_BIT);
 
-    // Desenha os dados do ImGui na tela
+    // desenha os dados na tela
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    // Troca os buffers da janela
+    // captura do framebuffer ANTES do swap: o back-buffer contém o frame completo.
+    if (!caminhoCaptura.empty()) {
+        capturarFramebuffer(caminhoCaptura, display_w, display_h);
+        caminhoCaptura.clear();
+    }
+
+    // troca os buffers da janela
     glfwSwapBuffers(window);
+}
+
+void GerenciadorGrafico::pedirCaptura(const std::string& caminho)
+{
+    caminhoCaptura = caminho;
+}
+
+void GerenciadorGrafico::capturarFramebuffer(const std::string& caminho, int w, int h)
+{
+    int stride = w * 4;
+    std::vector<unsigned char> pixels((size_t)(stride * h));
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+
+    // OpenGL: origem em baixo-esquerda -> inverte linhas para o formato PNG (topo-esquerda)
+    std::vector<unsigned char> flipped((size_t)(stride * h));
+    for (int y = 0; y < h; ++y)
+        std::memcpy(flipped.data() + y * stride,
+                    pixels.data() + (h - 1 - y) * stride,
+                    (size_t)stride);
+
+    if (!stbi_write_png(caminho.c_str(), w, h, 4, flipped.data(), stride))
+        std::cerr << "[GerenciadorGrafico] Falha ao salvar PNG: " << caminho << '\n';
+    else
+        std::cout << "[GerenciadorGrafico] Gantt exportado: " << caminho << '\n';
 }
 
 void GerenciadorGrafico::limpar() {
@@ -86,6 +130,6 @@ void GerenciadorGrafico::limpar() {
         glfwDestroyWindow(window);
         glfwTerminate();
         
-        window = nullptr; // Garante que não vamos tentar limpar duas vezes
+        window = nullptr; // garante que nao limpa duas vezes
     }
 }

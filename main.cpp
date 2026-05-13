@@ -5,7 +5,8 @@
 
 int main()
 {
-    GerenciadorGrafico gerenciadorGrafico(1280, 720, "Simulador SO Multitarefa");
+    // inicializa gerenciador gráfico
+    GerenciadorGrafico gerenciadorGrafico(1280, 720, "SO");
 
     if (!gerenciadorGrafico.inicializar())
         return -1;
@@ -19,9 +20,15 @@ int main()
 
         if (!telaInicial.isSimulacaoIniciada()) {
             telaInicial.desenhar();
-        } else {
+        } 
+        else {
             GerenciadorTarefa* g = GerenciadorTarefa::getInstance();
             bool voltar = telaSimulacao.desenhar(g);
+
+            std::string pngPath = telaSimulacao.consumirPedidoExportacao();
+            if (!pngPath.empty())
+                gerenciadorGrafico.pedirCaptura(pngPath);
+
             if (voltar)
                 telaInicial.resetar();
         }

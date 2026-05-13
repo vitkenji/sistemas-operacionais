@@ -3,7 +3,7 @@
 #include <map>
 #include <vector>
 
-// Snapshot do estado de uma tarefa em um instante — usado para undo/redo
+// snapshot do estado de uma tarefa em um instante
 struct SnapshotTarefa {
     int          id;
     EstadoTarefa estado;
@@ -11,10 +11,11 @@ struct SnapshotTarefa {
     int          quantumRestante;
 };
 
-// Snapshot completo do sistema após um tick — armazenado no histórico
+// snapshot do sistema depois de um tick.
 struct EstadoSistema {
     int                         tempoClock;
-    std::map<int, int>          alocacaoCPU;  // cpu_id → tarefa_id (-1 = sem tarefa)
-    std::map<int, bool>         cpuLigada;    // cpu_id → está ligada?
-    std::vector<SnapshotTarefa> tarefas;
+    std::map<int, int>          alocacaoCPU;  // qual tarefa esta em cada CPU
+    std::map<int, bool>         cpuLigada;    // quais CPUs estao ligadas
+    std::vector<SnapshotTarefa> tarefas; // o snapshot atual de cada tarefa
+    std::vector<int>            sorteadas; //quais tarefas tiveram empate resolvido por sorteio nesse tick
 };

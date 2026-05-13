@@ -3,6 +3,10 @@
 #include <string>
 #include <vector>
 
+// estados possíveis de uma tarefa ao longo do seu ciclo de vida
+// nova -> pronta ocorre quando o tick atinge o instante de ingresso
+// execucao -> pronta pode ocorrer por preempção
+// execucao -> terminada ocorre quando tempoRestante chega a zero
 enum class EstadoTarefa {
     Nova,
     Pronta,
@@ -11,21 +15,25 @@ enum class EstadoTarefa {
     Terminada
 };
 
+// TCB: representa uma tarefa no simulador.
+// armazena atributos lidos do arquivo, estado corrente e o histórico
 class Tarefa {
 private:
+    // atributos definidos no txt, nunca mudam
     int          ID;
-    std::string  corHex;
-    int          ingresso;
-    int          duracao;
+    std::string  corHex;      
+    int          ingresso;   
+    int          duracao; 
     int          prioridade;
     std::vector<int> lista_eventos;
 
-    // Estado corrente da simulação (modificado pelo motor tick a tick)
     EstadoTarefa estadoAtual;
-    int          tempoRestante;
-    int          quantumRestante;
+    int          tempoRestante;  
+    int          quantumRestante; // 0 quando não está em execução
 
-    // Histórico por tick (alimenta o Gráfico de Gantt)
+    // histórico por tick: map<tick, estado> alimenta o Gráfico de Gantt.
+    // usar map com sobrescrita permite que undo/redo reescreva ticks já calculados
+    // sem precisar limpar o histórico manualmente
     std::map<int, EstadoTarefa> historicoNoTempo;
 
 public:
@@ -33,26 +41,23 @@ public:
            int prioridade, std::vector<int> lista_eventos);
     ~Tarefa();
 
-    // Atributos fixos
     int         getID()         const;
     std::string getCorHex()     const;
     int         getIngresso()   const;
     int         getDuracao()    const;
     int         getPrioridade() const;
 
-    // Estado corrente (leitura)
     EstadoTarefa getEstadoAtual()    const;
     int          getTempoRestante()   const;
     int          getQuantumRestante() const;
 
-    // Estado corrente (escrita — usada pelo motor e pela edição manual)
     void setEstadoAtual(EstadoTarefa estado);
     void setTempoRestante(int t);
     void setQuantumRestante(int q);
     void decrementarTempoRestante();
     void decrementarQuantumRestante();
 
-    // Histórico por tick
+    // histórico por tick
     void         registrarEstadoNoTempo(int tick, EstadoTarefa estado);
     EstadoTarefa buscarEstadoNoTempo(int tick) const;
 };
