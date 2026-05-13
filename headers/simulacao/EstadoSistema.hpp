@@ -12,14 +12,10 @@ struct SnapshotTarefa {
 };
 
 // snapshot do sistema depois de um tick.
-// GerenciadorTarefa::historico é uma sequência de EstadoSistema
-// historico[T] representa  estado do sistema após T ticks
-// undo/redo equivale a restaurar um desses snapshots.
 struct EstadoSistema {
     int                         tempoClock;
-    std::map<int, int>          alocacaoCPU;  // cpu_id -> tarefa_id (-1 = sem tarefa)
-    std::map<int, bool>         cpuLigada;    // cpu_id -> está ligada?
-    std::vector<SnapshotTarefa> tarefas;
-    // IDs das tarefas cujo empate foi resolvido por sorteio
-    std::vector<int>            sorteadas;
+    std::map<int, int>          alocacaoCPU;  // qual tarefa esta em cada CPU
+    std::map<int, bool>         cpuLigada;    // quais CPUs estao ligadas
+    std::vector<SnapshotTarefa> tarefas; // o snapshot atual de cada tarefa
+    std::vector<int>            sorteadas; //quais tarefas tiveram empate resolvido por sorteio nesse tick
 };
