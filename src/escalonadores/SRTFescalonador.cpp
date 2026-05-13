@@ -10,10 +10,8 @@ static std::mt19937& rng() {
     return inst;
 }
 
-// Retorna true se 'a' é preferível a 'b' nos critérios determinísticos de SRTF.
-// Cadeia de desempate: menor tempo restante -> já em execução -> menor ingresso -> menor duração.
-// O critério "já em execução" como segundo desempate minimiza trocas de contexto
-// quando duas tarefas têm exatamente o mesmo tempo restante.
+// true se a é preferível a b no SRTF.
+// desempate: menor tempo restante -> já em execução -> menor ingresso -> menor duração
 static bool melhorSRTF(const Tarefa* a, const Tarefa* b)
 {
     if (a->getTempoRestante() != b->getTempoRestante())
@@ -63,17 +61,13 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
         return res;
     }
 
-    // Sorteia uma chave aleatória por tarefa para o desempate final.
-    // Usar chaves geradas antes da ordenação garante consistência dentro do tick.
+    // sorteia
     std::uniform_int_distribution<int> dist(0, 1'000'000);
     std::map<int, int> aleatorio;
     for (const Tarefa* t : candidatas)
         aleatorio[t->getID()] = dist(rng());
 
-    // Ordena as candidatas pelas regras do SRTF.
-    // O ID é usado como desempate absoluto final para garantir strict weak order,
-    // exigido pelo std::sort (sem ele, ordenações com chaves aleatórias iguais
-    // poderiam produzir comportamento indefinido).
+    // ordena as candidatas pelo SRTF
     std::sort(candidatas.begin(), candidatas.end(),
         [&](const Tarefa* a, const Tarefa* b) {
             if (!empateSRTF(a, b)) return melhorSRTF(a, b);
@@ -82,20 +76,16 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
             return a->getID() < b->getID();
         });
 
-    // Seleciona as N melhores candidatas (N = número de CPUs disponíveis)
+    // seleciona as N candidatas (N = número de CPUs disponíveis)
     int qtde = std::min(N, (int)candidatas.size());
 
-    // Detecta sorteio na fronteira: se a última tarefa selecionada e a primeira
-    // excluída empatam deterministicamente, o resultado foi decidido por sorteio.
-    // Esse ID é repassado ao Gráfico de Gantt para exibir o ícone de sorteio.
+    // detecta sorteio. ID é repassado ao Gráfico de Gantt para exibir o ícone de sorteio.
     if (qtde > 0 && qtde < (int)candidatas.size()) {
         if (empateSRTF(candidatas[qtde - 1], candidatas[qtde]))
             res.sorteadas.push_back(candidatas[qtde - 1]->getID());
     }
 
-    // ── Fase de atribuição: duas passagens para minimizar context switches ───────
-
-    // Mapeamento inverso: qual tarefa está rodando em qual CPU atualmente
+    // qual tarefa está rodando em qual CPU atualmente
     std::map<int, int> tarefaParaCPU;
     for (const auto& cpu : cpus)
         if (cpu.tarefaAtualID != -1)
@@ -104,8 +94,8 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
     std::set<int> cpusUsados;
     std::set<int> tarefasAlocadas;
 
-    // 1ª passagem: mantém no mesmo CPU as tarefas selecionadas que já estavam rodando.
-    // Isso evita context switch quando não há motivo para trocar de CPU.
+    // mantém no mesmo CPU as tarefas selecionadas que já estavam rodando.
+    // Isso evita troca de contexto quando não há motivo para trocar de CPU.
     for (int i = 0; i < qtde; ++i) {
         int tid = candidatas[i]->getID();
         auto it = tarefaParaCPU.find(tid);
@@ -116,7 +106,7 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
         }
     }
 
-    // 2ª passagem: distribui as tarefas restantes às CPUs que ficaram sem atribuição
+    // distribui as tarefas restantes às CPUs que ficaram sem atribuição
     std::vector<int> cpusLivres;
     for (const auto& cpu : cpus)
         if (!cpusUsados.count(cpu.id))
@@ -131,7 +121,7 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
         }
     }
 
-    // CPUs que sobraram ficam ociosas neste tick
+    // CPUs que sobraram ficam ociosas 
     while (idx < (int)cpusLivres.size())
         res.alocacao[cpusLivres[idx++]] = -1;
 
