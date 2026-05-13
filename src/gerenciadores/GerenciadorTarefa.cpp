@@ -148,9 +148,8 @@ void GerenciadorTarefa::computarProximoTick()
         CPU* cpu = findCPU(cpuId);
         if (!cpu) continue;
 
-        if (tarefaId == cpu->tarefaAtualID) {
-            // mesma tarefa: verifica se quantum precisa ser reiniciado
-            //não faz nada
+        if (tarefaId != -1 && tarefaId == cpu->tarefaAtualID) {
+            // mesma tarefa continua: quantum segue contando
             continue;
         }
 
@@ -165,7 +164,7 @@ void GerenciadorTarefa::computarProximoTick()
 
         if (tarefaId == -1) {
             // CPU sem tarefa: desliga
-            cpu->ligada = hasTarefaProntaOuExecutando();
+            cpu->ligada = false;
         } else {
             Tarefa* nova = findTarefa(tarefaId);
             if (nova) {

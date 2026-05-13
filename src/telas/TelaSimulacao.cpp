@@ -101,7 +101,7 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
                 if (t.getID() == cpu.tarefaAtualID) {
                     cor   = hexParaImVec4(t.getCorHex());
                     label = "T" + std::to_string(t.getID())
-                            + "  (" + std::to_string(t.getTempoRestante()) + " restam)";
+                            + "(restam: " + std::to_string(t.getTempoRestante()) + ")";
                     break;
                 }
             }
@@ -204,7 +204,6 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
 // gantt
 void TelaSimulacao::desenharGantt(GerenciadorTarefa* g)
 {
-    ImGui::Text("Grafico de Gantt");
     ImGui::Spacing();
     gantt.desenhar(g);
 }
@@ -242,7 +241,7 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
     ImGui::Spacing();
     if (g->isSimulacaoCompleta()) {
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
-                           "Simulacao concluida! Todas as tarefas foram executadas.");
+                           "Simulação concluída.");
     } else {
         ImGui::TextDisabled("Tick %d  |  Use 'Avancar >>' para prosseguir passo a passo.",
                             g->getTickAtual());
@@ -268,7 +267,6 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     if (!g->isSimulacaoCompleta()) {
         ImGui::SameLine();
-        ImGui::TextDisabled("(disponivel ao fim da simulacao)");
     }
 
     // notificação temporária após exportar

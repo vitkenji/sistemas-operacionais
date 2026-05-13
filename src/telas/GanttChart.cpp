@@ -130,7 +130,6 @@ static void desenharLegenda()
     };
 
     ImGui::Spacing();
-    ImGui::TextDisabled("Legenda:");
     ImGui::SameLine(0.f, 8.f);
 
     retang(IM_COL32(255,165, 50,200), 0,                          "Executando (cor da tarefa)");

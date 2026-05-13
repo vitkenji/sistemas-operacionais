@@ -80,9 +80,9 @@ void TelaInicial::desenharFormulario()
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::TextDisabled("Formato esperado:");
-    ImGui::TextDisabled("  Linha 1: algoritmo;quantum;qtde_cpus");
-    ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao;prioridade[;eventos]");
+    ImGui::TextDisabled("Formato esperado ([] = opcional, valor apos '=' e o padrao):");
+    ImGui::TextDisabled("  Linha 1: [algoritmo=priop][;quantum=1][;qtde_cpus=2]");
+    ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao[;prioridade=0][;eventos]");
     ImGui::TextDisabled("  Algoritmos: SRTF, PRIOP  |  qtde_cpus >= 2");
 }
 
