@@ -16,30 +16,40 @@ GerenciadorGrafico::~GerenciadorGrafico() {
 }
 
 bool GerenciadorGrafico::inicializar() {
-    // inicializa GLFW
-    if (!glfwInit()) {
-        std::cerr << "Falha ao inicializar o GLFW!" << std::endl;
+    // inicializa glfw
+    if (!glfwInit())
+    {
+        std::cerr << "erro ao inicializar GLFW" << std::endl;
         return false;
     }
 
+    // define versao do opengl
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
 
+    // cria a instancia da janela
     window = glfwCreateWindow(largura, altura, titulo.c_str(), NULL, NULL);
-    if (!window) {
-        std::cerr << "Falha ao criar janela GLFW!" << std::endl;
+    
+    // verifica se a janela foi criada
+    if (!window)
+    {
+        std::cerr << "erro ao criar janela GLFW" << std::endl;
         glfwTerminate();
         return false;
     }
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // Habilita V-Sync
 
-    // inicializa contexto do ImGui
+    // define a janela como contexto atual
+    glfwMakeContextCurrent(window);
+    // habilita v-sync
+    glfwSwapInterval(1); 
+
+    // inicializa contexto do imgui
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+    // define tema escuro
     ImGui::StyleColorsDark();
 
-    // inicializa GLFW + OpenGL
+    // vincula imgui ao glfw e opengl
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
@@ -47,14 +57,17 @@ bool GerenciadorGrafico::inicializar() {
 }
 
 bool GerenciadorGrafico::janelaDeveFechar() const {
+    // verifica se a janela deve ser fechada
     return glfwWindowShouldClose(window);
 }
 
 void GerenciadorGrafico::processarEventos() {
+    // processa inputs e eventos do sistema
     glfwPollEvents();
 }
 
 void GerenciadorGrafico::iniciarFrame() {
+    // prepara o inicio de um novo frame no imgui
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
