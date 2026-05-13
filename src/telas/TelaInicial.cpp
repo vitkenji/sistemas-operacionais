@@ -1,6 +1,7 @@
 #include "telas/TelaInicial.hpp"
 #include "gerenciadores/GerenciadorTarefa.hpp"
 #include "imgui.h"
+#include <cstring>
 #include <string>
 
 static ImVec4 hexParaImVec4(const std::string& hex)
@@ -35,6 +36,13 @@ void TelaInicial::processarImportacao()
 {
     ultimaConfig   = CarregadorConfig::carregar(caminhoArquivo);
     tentouCarregar = true;
+}
+
+void TelaInicial::carregarExemplo(const char* caminho)
+{
+    std::strncpy(caminhoArquivo, caminho, sizeof(caminhoArquivo) - 1);
+    caminhoArquivo[sizeof(caminhoArquivo) - 1] = '\0';
+    processarImportacao();
 }
 
 void TelaInicial::desenhar()
@@ -74,6 +82,24 @@ void TelaInicial::desenharFormulario()
 
     if (ImGui::Button("Importar", ImVec2(120, 0)))
         processarImportacao();
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Ou carregue um exemplo:");
+    ImGui::Spacing();
+
+    if (ImGui::Button("Exemplo 1 - PRIOP basico", ImVec2(240, 0)))
+        carregarExemplo("exemplos/01_priop_basico.txt");
+
+    if (ImGui::Button("Exemplo 2 - SRTF basico", ImVec2(240, 0)))
+        carregarExemplo("exemplos/02_srtf_basico.txt");
+
+    if (ImGui::Button("Exemplo 3 - Chegadas escalonadas", ImVec2(240, 0)))
+        carregarExemplo("exemplos/03_chegadas_escalonadas.txt");
+
+    if (ImGui::Button("Exemplo 4 - PRIOP complexo", ImVec2(240, 0)))
+        carregarExemplo("exemplos/04_priop_complexo.txt");
 
     if (tentouCarregar && !ultimaConfig.valida) {
         ImGui::Spacing();
