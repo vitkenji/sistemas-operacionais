@@ -135,9 +135,9 @@ void GerenciadorTarefa::computarProximoTick()
         }
     }
 
-    //  se o ingresso <= T, a tarefa entra na fila de prontas
+    // ingresso=0 fica pronta no tick 1, ingresso=1 no tick 2, etc.
     for (auto& t : listaTarefas)
-        if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() <= T)
+        if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() < T)
             t.setEstadoAtual(EstadoTarefa::Pronta);
 
     // chama o escalonador, que devolve mapa cpu_id -> tarefa_id para este tick, com o estado atual
