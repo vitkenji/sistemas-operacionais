@@ -9,6 +9,7 @@ private:
     bool            simulacaoIniciada;
 
     void processarImportacao();
+    void carregarExemplo(const char* caminho);
     void desenharFormulario();
     void desenharResultado();
 

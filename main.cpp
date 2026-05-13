@@ -1,4 +1,4 @@
-#include "gerenciadores/GerenciadorGrafico.hpp"
+#include "gerenciadores/gerenciadorGrafico.hpp"
 #include "gerenciadores/GerenciadorTarefa.hpp"
 #include "telas/TelaInicial.hpp"
 #include "telas/TelaSimulacao.hpp"
