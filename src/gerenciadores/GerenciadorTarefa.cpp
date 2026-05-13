@@ -7,12 +7,10 @@
 
 GerenciadorTarefa* GerenciadorTarefa::instance = nullptr;
 
-// ─── Ciclo de vida estático ────────────────────────────────────────────────────
-
 GerenciadorTarefa* GerenciadorTarefa::getInstance() { return instance; }
 
-// Cria (ou recria) a instância única a partir de uma configuração carregada do arquivo.
-// Chamar configurar() duas vezes reinicia a simulação do zero.
+// cria a instância única a partir de uma configuração carregada do arquivo.
+// chamar configurar() duas vezes reinicia a simulação do zero.
 void GerenciadorTarefa::configurar(const ConfigSimulacao& config)
 {
     resetar();
@@ -25,8 +23,7 @@ void GerenciadorTarefa::resetar()
     instance = nullptr;
 }
 
-// ─── Construtor / destrutor ────────────────────────────────────────────────────
-
+// construtor / destrutor
 GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
     : pEscalonador(criarEscalonador(config.algoritmo)),
       quantum(config.quantum),
@@ -38,14 +35,13 @@ GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
         cpus.push_back({i, -1, true});
 
     // historico[0] representa o estado antes de qualquer tick ser executado.
-    // A cada avanço, um novo snapshot é empilhado em historico[T].
+    // a cada avanço, um novo snapshot é empilhado em historico[T].
     historico.push_back(buildSnapshot());
 }
 
 GerenciadorTarefa::~GerenciadorTarefa() { delete pEscalonador; }
 
-// ─── Navegação ────────────────────────────────────────────────────────────────
-
+// navegacao
 // podeAvancar() retorna true se há um tick futuro já calculado (redo) OU
 // se a simulação ainda não acabou (próximo tick será calculado sob demanda).
 bool GerenciadorTarefa::podeAvancar() const
@@ -91,8 +87,7 @@ void GerenciadorTarefa::executarCompleto()
         avancar();
 }
 
-// ─── Edição manual ────────────────────────────────────────────────────────────
-
+// edicao manual
 // Permite alterar o estado de uma tarefa em qualquer ponto da simulação.
 // Ao editar, os snapshots futuros são descartados (historico.resize) porque
 // o novo estado pode gerar uma sequência completamente diferente de ticks.
@@ -101,7 +96,7 @@ void GerenciadorTarefa::editarEstadoTarefa(int tarefaId, EstadoTarefa novoEstado
     Tarefa* t = findTarefa(tarefaId);
     if (!t) return;
 
-    // Se a tarefa estava em execução e vira outra coisa, libera a CPU
+    // se tarefa em execução vira outra coisa, libera a CPU
     if (t->getEstadoAtual() == EstadoTarefa::Execucao
         && novoEstado != EstadoTarefa::Execucao)
     {

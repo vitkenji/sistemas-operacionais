@@ -4,14 +4,14 @@
 #include <random>
 #include <set>
 
-// Gerador de números aleatórios compartilhado (semeado uma vez na inicialização)
+// gerador de numeros aleatorios
 static std::mt19937& rng() {
     static std::mt19937 inst(std::random_device{}());
     return inst;
 }
 
 // Retorna true se 'a' é preferível a 'b' nos critérios determinísticos de SRTF.
-// Cadeia de desempate: menor tempo restante → já em execução → menor ingresso → menor duração.
+// Cadeia de desempate: menor tempo restante -> já em execução -> menor ingresso -> menor duração.
 // O critério "já em execução" como segundo desempate minimiza trocas de contexto
 // quando duas tarefas têm exatamente o mesmo tempo restante.
 static bool melhorSRTF(const Tarefa* a, const Tarefa* b)
@@ -29,8 +29,8 @@ static bool melhorSRTF(const Tarefa* a, const Tarefa* b)
     return a->getDuracao() < b->getDuracao();
 }
 
-// Retorna true se 'a' e 'b' empatam em todos os critérios determinísticos.
-// Quando há empate, o desempate final é feito por sorteio (número aleatório).
+// true se a e b empatam em todos os criterios.
+// assim, o desempate é feito por sorteio.
 static bool empateSRTF(const Tarefa* a, const Tarefa* b)
 {
     bool aEx = a->getEstadoAtual() == EstadoTarefa::Execucao;
@@ -49,8 +49,8 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
     ResultadoEscalonamento res;
     int N = (int)cpus.size();
 
-    // Candidatas são tarefas que podem rodar neste tick: Pronta ou já em Execução.
-    // Tarefas Nova, Suspensa e Terminada são ignoradas pelo escalonador.
+    // candidatas sao tarefas em pronta ou em execucao
+    // novas, suspensas e terminadas são ignoradas
     std::vector<const Tarefa*> candidatas;
     for (const auto& t : tarefas)
         if (t.getEstadoAtual() == EstadoTarefa::Pronta ||

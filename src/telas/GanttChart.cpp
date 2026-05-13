@@ -1,12 +1,10 @@
 #include "telas/GanttChart.hpp"
 #include "imgui.h"
-
 #include <algorithm>
 #include <cstdio>
 #include <string>
 
-// ─── Helper: hex → ImVec4 ─────────────────────────────────────────────────────
-
+// hex -> ImVec4 
 static ImVec4 hexParaImVec4Gantt(const std::string& hex)
 {
     if (hex.size() < 6) return ImVec4(1.f, 1.f, 1.f, 1.f);
@@ -18,17 +16,16 @@ static ImVec4 hexParaImVec4Gantt(const std::string& hex)
     } catch (...) { return ImVec4(1.f, 1.f, 1.f, 1.f); }
 }
 
-// Retorna o estado de uma tarefa a partir do snapshot; Nova se não encontrada.
+// retorna  estado de tarefa a partir do snapshot
 static EstadoTarefa estadoDaTarefa(const EstadoSistema& snap, int id)
 {
     for (const auto& ts : snap.tarefas)
         if (ts.id == id) return ts.estado;
+    // nova, se não encontrada
     return EstadoTarefa::Nova;
 }
 
-// ─── Ícones ───────────────────────────────────────────────────────────────────
-
-// ▼ Triângulo verde apontando para baixo — marca chegada da tarefa (req. 2.2)
+// triângulo verde apontando para baixo — marca chegada da tarefa
 static void iconChegada(ImDrawList* dl, float cx, float top)
 {
     constexpr float hw = 5.f;
@@ -41,7 +38,7 @@ static void iconChegada(ImDrawList* dl, float cx, float top)
         IM_COL32(20, 130, 20, 255));
 }
 
-// ⚑ Mastro + bandeira triangular vermelha — marca término da tarefa (req. 2.2)
+// mastro + bandeira triangular vermelha — marca término da tarefa
 static void iconTermino(ImDrawList* dl, float x, float rowY, float cellH)
 {
     dl->AddLine(ImVec2(x, rowY + 2.f), ImVec2(x, rowY + cellH - 2.f),
@@ -54,7 +51,7 @@ static void iconTermino(ImDrawList* dl, float x, float rowY, float cellH)
         IM_COL32(255, 70, 70, 220));
 }
 
-// ◆ Diamante amarelo — sorteio (tie-break por loteria, req. 4.3)
+// diamante amarelo — sorteio
 static void iconSorteio(ImDrawList* dl, float cx, float cy)
 {
     constexpr float r = 4.f;
@@ -68,10 +65,8 @@ static void iconSorteio(ImDrawList* dl, float cx, float cy)
         IM_COL32(200, 155, 0, 255));
 }
 
-// ─── Legenda ──────────────────────────────────────────────────────────────────
-
-// Desenha uma linha de legenda imediatamente abaixo do child do Gantt.
-// Cada item: pequeno ícone amostral + rótulo textual (req. 3 / req. 2.1 / req. 2.2 / req. 4.3).
+// desenha linha de legenda imediatamente abaixo do child do Gantt.
+// cada item: pequeno ícone amostral + rótulo textual
 static void desenharLegenda()
 {
     ImDrawList* dl      = ImGui::GetWindowDrawList();
@@ -79,7 +74,7 @@ static void desenharLegenda()
     constexpr float GI  =  4.f;   // gap ícone → texto
     constexpr float GT  = 12.f;   // gap entre itens
 
-    // Retângulo sólido + borda opcional
+    // retângulo + borda opcional
     auto retang = [&](ImU32 fill, ImU32 border, const char* label) {
         ImVec2 p = ImGui::GetCursorScreenPos();
         if (fill)   dl->AddRectFilled(p, ImVec2(p.x + S, p.y + S), fill,   2.f);
@@ -90,7 +85,7 @@ static void desenharLegenda()
         ImGui::SameLine(0.f, GT);
     };
 
-    // ▼ Triângulo verde (chegada)
+    // triângulo verde (chegada)
     auto chegada = [&](const char* label) {
         ImVec2 p = ImGui::GetCursorScreenPos();
         float cx = p.x + S * 0.5f, top = p.y + 1.f;
@@ -104,7 +99,7 @@ static void desenharLegenda()
         ImGui::SameLine(0.f, GT);
     };
 
-    // ⚑ Bandeira vermelha (término)
+    // bandeira vermelha (término)
     auto termino = [&](const char* label) {
         ImVec2 p  = ImGui::GetCursorScreenPos();
         float x   = p.x + 3.f, y0 = p.y, y1 = p.y + S;
@@ -118,7 +113,7 @@ static void desenharLegenda()
         ImGui::SameLine(0.f, GT);
     };
 
-    // ◆ Diamante amarelo (sorteio)
+    // diamante amarelo (sorteio)
     auto sorteio = [&](const char* label) {
         ImVec2 p  = ImGui::GetCursorScreenPos();
         float cx  = p.x + S * 0.5f, cy = p.y + S * 0.5f, r = 5.f;
@@ -149,7 +144,7 @@ static void desenharLegenda()
     ImGui::NewLine();
 }
 
-// ─── Ponto de entrada ─────────────────────────────────────────────────────────
+// ponto de entrada
 
 void GanttChart::desenhar(GerenciadorTarefa* g)
 {
@@ -165,7 +160,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
     const auto& hist = g->getHistorico();   // hist[0..tickMax]
     int nCPUs        = g->getQtdeCpus();
 
-    // Ordena ID decrescente: ID menor fica na linha mais baixa (perto do eixo X — req. 2.5)
+    // ID menor fica na linha mais baixa
     std::vector<const Tarefa*> tarefas;
     tarefas.reserve(tarefasRaw.size());
     for (const auto& t : tarefasRaw) tarefas.push_back(&t);
@@ -185,11 +180,11 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
     ImVec2 origin  = ImGui::GetCursorScreenPos();   // já ajustado pelo scroll atual
     ImGui::Dummy(ImVec2(totalW, totalH));            // dimensiona a área de scroll
 
-    // ── Fundo ────────────────────────────────────────────────────────────────
+    // fundo
     dl->AddRectFilled(origin, ImVec2(origin.x + totalW, origin.y + totalH),
                       IM_COL32(28, 28, 28, 255));
 
-    // ── Pré-computa tick de término por linha ─────────────────────────────────
+    // pre-computa tick de término por linha
     // termTick[row] = primeiro tick em que a tarefa aparece como Terminada; -1 se ainda não.
     std::vector<int> termTick(nRows, -1);
     for (int row = 0; row < nRows && tickMax > 0; ++row) {
@@ -199,7 +194,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
                 termTick[row] = t;
     }
 
-    // ── Cabeçalho de ticks ────────────────────────────────────────────────────
+    // cabecalho de ticks
     for (int t = 1; t <= tickMax; ++t) {
         float x = origin.x + LABEL_W + (t - 1) * CELL_W;
         if (t == 1 || t % 5 == 0 || t == tickMax) {
@@ -213,13 +208,13 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
                     IM_COL32(90, 90, 90, 200));
     }
 
-    // ── Linhas de tarefas ─────────────────────────────────────────────────────
+    // linhas de tarefas
     for (int row = 0; row < nRows; ++row) {
         const Tarefa* task = tarefas[row];
         float rowY = origin.y + HEADER_H + row * CELL_H;
         int   id   = task->getID();
 
-        // Fundo alternado
+        // fundo alternado
         ImU32 rowBg = (row % 2 == 0) ? IM_COL32(45, 45, 45, 255)
                                       : IM_COL32(38, 38, 38, 255);
         dl->AddRectFilled(ImVec2(origin.x, rowY),
@@ -232,7 +227,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
 
         if (tickMax == 0) continue;
 
-        // ── Células por tick ─────────────────────────────────────────────────
+        // células por tick
         for (int t = 1; t <= tickMax; ++t) {
             const EstadoSistema& snap = hist[(size_t)t];
             EstadoTarefa estado = estadoDaTarefa(snap, id);
@@ -267,7 +262,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
                 default: break;
             }
 
-            // ── Ícone de sorteio ◆ — no canto superior direito da célula (req. 4.3)
+            // Ícone de sorteio ◆ — no canto superior direito da célula
             for (int sid : snap.sorteadas) {
                 if (sid == id) {
                     iconSorteio(dl, cellX + CELL_W - 5.f, rowY + 5.f);
@@ -276,8 +271,8 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
             }
         }
 
-        // ── Ícone de chegada ▼ — no topo da célula do tick de ingresso (req. 2.2)
-        // Tarefas com ingresso=0 são tratadas como ingresso=1 (já presentes antes do 1º tick)
+        // icone de chegada no topo da célula do tick de ingresso
+        // tarefas com ingresso=0 são tratadas como ingresso=1 (já presentes antes do primeiro tick)
         int ingresso = task->getIngresso();
         if (ingresso <= tickMax) {
             int visCol = std::max(1, ingresso);   // coluna visível mínima = 1
@@ -285,7 +280,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
             iconChegada(dl, cx, rowY + 1.f);
         }
 
-        // ── Ícone de término ⚑ — na borda direita do último tick de execução (req. 2.2)
+        // icone de término na borda direita do último tick de execução
         // termTick é o 1º tick em estado Terminada; o último tick de execução foi termTick-1,
         // então a borda direita desse bloco coincide com a borda esquerda da coluna termTick.
         if (termTick[row] != -1) {
@@ -294,7 +289,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
         }
     }
 
-    // ── Grade da seção de tarefas ─────────────────────────────────────────────
+    // grade da seção de tarefas
     float taskBottom = origin.y + HEADER_H + nRows * CELL_H;
 
     for (int row = 0; row <= nRows; ++row) {
@@ -311,8 +306,8 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
                 ImVec2(origin.x + LABEL_W, taskBottom),
                 IM_COL32(100, 100, 100, 255));
 
-    // ── Seção de CPUs — mostra períodos em que cada CPU esteve desligada ──────
-    // Linha separadora entre tarefas e CPUs
+    // seção de CPUs — mostra períodos em que cada CPU esteve desligada
+    // linha separadora entre tarefas e CPUs
     float cpuTop = taskBottom + 6.f;
     dl->AddLine(ImVec2(origin.x, cpuTop - 3.f),
                 ImVec2(origin.x + totalW, cpuTop - 3.f),
@@ -321,7 +316,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
     for (int c = 0; c < nCPUs; ++c) {
         float cpuY = cpuTop + c * CPU_ROW_H;
 
-        // Fundo da linha de CPU
+        // fundo da linha de CPU
         dl->AddRectFilled(ImVec2(origin.x, cpuY),
                           ImVec2(origin.x + totalW, cpuY + CPU_ROW_H),
                           IM_COL32(32, 32, 32, 255));
@@ -331,7 +326,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
         dl->AddText(ImVec2(origin.x + 3.f, cpuY + (CPU_ROW_H - 13.f) * 0.5f),
                     IM_COL32(150, 150, 150, 255), cpuLbl);
 
-        // Destaca ticks em que a CPU estava desligada (req. 1.2)
+        // destaca ticks em que a CPU estava desligada
         for (int t = 1; t <= tickMax; ++t) {
             const EstadoSistema& snap = hist[(size_t)t];
             auto itL = snap.cpuLigada.find(c);
@@ -348,7 +343,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
             }
         }
 
-        // Grade vertical e borda inferior da linha de CPU
+        // grade vertical e borda inferior da linha de CPU
         for (int t = 0; t <= tickMax; ++t)
             dl->AddLine(ImVec2(origin.x + LABEL_W + t * CELL_W, cpuY),
                         ImVec2(origin.x + LABEL_W + t * CELL_W, cpuY + CPU_ROW_H),
@@ -361,7 +356,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
                     IM_COL32(80, 80, 80, 200));
     }
 
-    // ── Placeholder quando nenhum tick foi simulado ainda ────────────────────
+    // quando nenhum tick foi simulado ainda 
     if (tickMax == 0) {
         dl->AddText(
             ImVec2(origin.x + LABEL_W + 8.f, origin.y + HEADER_H + 10.f),

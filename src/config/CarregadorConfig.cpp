@@ -21,7 +21,7 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
     while (std::getline(arquivo, linha)) {
         ++numeroLinha;
 
-        // Remove \r para compatibilidade com arquivos CRLF (Windows)
+        // remove \r para compatibilidade
         if (!linha.empty() && linha.back() == '\r')
             linha.pop_back();
 
@@ -31,7 +31,7 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
         std::vector<std::string> campos = split(linha, ';');
 
         if (primeiraLinha) {
-            // Formato linha 1: algoritmo_escalonamento;quantum;qtde_cpus
+            // algoritmo_escalonamento;quantum;qtde_cpus
             if (campos.size() < 3) {
                 config.erroMensagem = "Linha 1 invalida: esperado algoritmo;quantum;qtde_cpus";
                 return config;
@@ -51,7 +51,7 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
             primeiraLinha = false;
 
         } else {
-            // Formato linhas 2+: id;cor;ingresso;duracao;prioridade[;lista_eventos]
+            // id;cor;ingresso;duracao;prioridade[;lista_eventos]
             if (campos.size() < 5) {
                 config.erroMensagem = "Linha " + std::to_string(numeroLinha) +
                     " invalida: esperado id;cor;ingresso;duracao;prioridade[;lista_eventos]";

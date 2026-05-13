@@ -18,6 +18,6 @@ public:
     void desenhar();
     bool isSimulacaoIniciada() const;
 
-    // Chamado quando o usuário volta da tela de simulação
+    // chamado quando usuário volta da tela de simulação
     void resetar();
 };

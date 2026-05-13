@@ -5,6 +5,7 @@
 
 int main()
 {
+    // inicializa gerenciador gráfico
     GerenciadorGrafico gerenciadorGrafico(1280, 720, "SO");
 
     if (!gerenciadorGrafico.inicializar())

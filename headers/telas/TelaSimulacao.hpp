@@ -4,11 +4,11 @@
 
 class TelaSimulacao {
 public:
-    // Retorna true quando o usuário clica em "Voltar para configuração"
+    // true quando user clica em "Voltar para configuração"
     bool desenhar(GerenciadorTarefa* g);
 
-    // Retorna o caminho do PNG pedido (não vazio) e limpa o pedido.
-    // Deve ser chamado após desenhar() e antes de renderizar().
+    // retorna caminho do PNG pedido e limpa o pedido.
+    // chamado após desenhar() e antes de renderizar().
     std::string consumirPedidoExportacao();
 
 private:

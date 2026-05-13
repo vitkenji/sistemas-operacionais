@@ -4,15 +4,14 @@
 #include <random>
 #include <set>
 
-// Gerador de números aleatórios compartilhado (semeado uma vez na inicialização)
+// gerador de numeros aleatórios
 static std::mt19937& rng() {
     static std::mt19937 inst(std::random_device{}());
     return inst;
 }
 
-// Retorna true se 'a' é preferível a 'b' nos critérios determinísticos de PRIOp.
-// Cadeia de desempate: prioridade maior → já em execução → menor ingresso → menor duração.
-// O critério "já em execução" evita context switch desnecessário quando as prioridades são iguais.
+// true se a é preferível a b nos critérios de PRIOp.
+// desempate: prioridade maior -> em execução -> menor ingresso → menor duração.
 static bool melhorPriop(const Tarefa* a, const Tarefa* b)
 {
     if (a->getPrioridade() != b->getPrioridade())
@@ -49,7 +48,7 @@ ResultadoEscalonamento PriopEscalonador::escalonar(
     int N = (int)cpus.size();
 
     // Candidatas são tarefas que podem rodar neste tick: Pronta ou já em Execução.
-    // Tarefas Nova, Suspensa e Terminada são ignoradas pelo escalonador.
+    // Nova, Suspensa e Terminada ignoradas.
     std::vector<const Tarefa*> candidatas;
     for (const auto& t : tarefas)
         if (t.getEstadoAtual() == EstadoTarefa::Pronta ||
@@ -62,7 +61,7 @@ ResultadoEscalonamento PriopEscalonador::escalonar(
         return res;
     }
 
-    // Sorteia uma chave aleatória por tarefa para o desempate final.
+    // sorteia chave aleatória por tarefa para desempate.
     // Usar chaves geradas antes da ordenação garante consistência dentro do tick.
     std::uniform_int_distribution<int> dist(0, 1'000'000);
     std::map<int, int> aleatorio;
@@ -81,7 +80,7 @@ ResultadoEscalonamento PriopEscalonador::escalonar(
             return a->getID() < b->getID();
         });
 
-    // Seleciona as N melhores candidatas (N = número de CPUs disponíveis)
+    // seleciona as N melhores candidatas (N = número de CPUs disponíveis)
     int qtde = std::min(N, (int)candidatas.size());
 
     // Detecta sorteio na fronteira: se a última tarefa selecionada e a primeira
@@ -92,9 +91,9 @@ ResultadoEscalonamento PriopEscalonador::escalonar(
             res.sorteadas.push_back(candidatas[qtde - 1]->getID());
     }
 
-    // ── Fase de atribuição: duas passagens para minimizar context switches ───────
+    // fase de atribuição: duas passagens para minimizar context switches
 
-    // Mapeamento inverso: qual tarefa está rodando em qual CPU atualmente
+    // mapeamento inverso: qual tarefa está rodando em qual CPU atualmente
     std::map<int, int> tarefaParaCPU;
     for (const auto& cpu : cpus)
         if (cpu.tarefaAtualID != -1)
