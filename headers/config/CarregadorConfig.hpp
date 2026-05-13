@@ -3,8 +3,8 @@
 #include <string>
 #include <vector>
 
-// resultado da leitura do arquivo de configuração.
-// verificar 'valida' antes de usar os demais campos.
+// parse do txt
+// verificar 'valida' antes de usar os campos
 struct ConfigSimulacao {
     std::string algoritmo; 
     int quantum   = 1;

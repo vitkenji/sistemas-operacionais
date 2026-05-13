@@ -1,7 +1,6 @@
 #include "telas/TelaInicial.hpp"
 #include "gerenciadores/GerenciadorTarefa.hpp"
 #include "imgui.h"
-
 #include <string>
 
 static ImVec4 hexParaImVec4(const std::string& hex)
@@ -40,9 +39,11 @@ void TelaInicial::processarImportacao()
 
 void TelaInicial::desenhar()
 {
+    // obtém dimensões atuais da janela para cobrir toda a tela
     ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0, 0));
     ImGui::SetNextWindowSize(io.DisplaySize);
+    // desativa decorações para que a janela funcione como tela inteira
     ImGui::Begin("Simulador de SO - Configuracao", nullptr,
                  ImGuiWindowFlags_NoTitleBar  |
                  ImGuiWindowFlags_NoResize    |
@@ -50,6 +51,7 @@ void TelaInicial::desenhar()
                  ImGuiWindowFlags_NoCollapse  |
                  ImGuiWindowFlags_NoBringToFrontOnFocus);
 
+    // exibe formulário enquanto não há configuração válida; após carga, mostra resultado
     if (!ultimaConfig.valida)
         desenharFormulario();
     else
@@ -58,9 +60,10 @@ void TelaInicial::desenhar()
     ImGui::End();
 }
 
+//tela para importar arquivo
 void TelaInicial::desenharFormulario()
 {
-    ImGui::Text("Importe o arquivo de configuracao (.txt) para iniciar a simulacao.");
+    ImGui::Text("Importe o arquivo de configuracao (.txt)");
     ImGui::Separator();
     ImGui::Spacing();
 
@@ -80,12 +83,12 @@ void TelaInicial::desenharFormulario()
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::TextDisabled("Formato esperado ([] = opcional, valor apos '=' e o padrao):");
     ImGui::TextDisabled("  Linha 1: [algoritmo=priop][;quantum=1][;qtde_cpus=2]");
     ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao[;prioridade=0][;eventos]");
     ImGui::TextDisabled("  Algoritmos: SRTF, PRIOP  |  qtde_cpus >= 2");
 }
 
+//tela após importar arquivo
 void TelaInicial::desenharResultado()
 {
     ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f), "Configuracao carregada com sucesso!");
