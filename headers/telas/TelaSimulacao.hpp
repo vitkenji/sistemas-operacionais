@@ -14,8 +14,8 @@ public:
 private:
     GanttChart  gantt;
     bool        flagExportarPNG  = false;
-    int         framesNotificacao = 0;
-    std::string ultimaExportacao;
+    bool        exportacaoConcluida = false; // flag para exibir mensagem 
+    std::string ultimaExportacao; //caminho do arquivo exportado
 
     void desenharPainelCPUs(GerenciadorTarefa* g);
     void desenharTabelaTarefas(GerenciadorTarefa* g);

@@ -259,19 +259,13 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::BeginDisabled(!g->isSimulacaoCompleta());
     if (ImGui::Button("Exportar PNG", ImVec2(120, 0))) {
-        flagExportarPNG   = true;
-        ultimaExportacao  = exportPath;
-        framesNotificacao = 180;  // ~3 s a 60 fps
+        flagExportarPNG      = true;
+        exportacaoConcluida  = true;
+        ultimaExportacao     = exportPath;
     }
     ImGui::EndDisabled();
 
-    if (!g->isSimulacaoCompleta()) {
-        ImGui::SameLine();
-    }
-
-    // notificação temporária após exportar
-    if (framesNotificacao > 0) {
-        --framesNotificacao;
+    if (exportacaoConcluida) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
                            "Exportado: %s", ultimaExportacao.c_str());

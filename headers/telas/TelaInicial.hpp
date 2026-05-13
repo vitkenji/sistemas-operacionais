@@ -5,7 +5,7 @@ class TelaInicial {
 private:
     char            caminhoArquivo[512];
     ConfigSimulacao ultimaConfig;
-    bool            tentouCarregar;
+    bool            tentouCarregar; //flag que controla se mensagem de erro deve aparecer
     bool            simulacaoIniciada;
 
     void processarImportacao();
