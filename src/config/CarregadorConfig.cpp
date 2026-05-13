@@ -51,7 +51,7 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
                 return config;
             }
             if (config.qtde_cpus < 2) {
-                config.erroMensagem = "qtde_cpus deve ser >= 2 (minimo exigido pelo enunciado)";
+                config.erroMensagem = "qtde_cpus deve ser >= 2";
                 return config;
             }
             primeiraLinha = false;
