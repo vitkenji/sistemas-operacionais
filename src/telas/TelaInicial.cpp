@@ -95,8 +95,8 @@ void TelaInicial::desenharFormulario()
     if (ImGui::Button("Exemplo 2 - SRTF basico", ImVec2(240, 0)))
         carregarExemplo("exemplos/02_srtf_basico.txt");
 
-    if (ImGui::Button("Exemplo 3 - Chegadas escalonadas", ImVec2(240, 0)))
-        carregarExemplo("exemplos/03_chegadas_escalonadas.txt");
+    if (ImGui::Button("Exemplo 3 - Sorteio", ImVec2(240, 0)))
+        carregarExemplo("exemplos/03_sorteio.txt");
 
     if (ImGui::Button("Exemplo 4 - PRIOP complexo", ImVec2(240, 0)))
         carregarExemplo("exemplos/04_priop_complexo.txt");
