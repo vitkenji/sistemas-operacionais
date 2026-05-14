@@ -91,7 +91,7 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
         if (!cpu.ligada) {
             cor   = ImVec4(0.2f, 0.2f, 0.2f, 1.f);
             label = "DESLIGADA";
-        } else if (cpu.tarefaAtualID == -1) {
+        } else if (cpu.tarefaAtualID.empty()) {
             cor   = ImVec4(0.4f, 0.4f, 0.4f, 1.f);
             label = "OCIOSA";
         } else {
@@ -100,7 +100,7 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
             for (const auto& t : tarefas) {
                 if (t.getID() == cpu.tarefaAtualID) {
                     cor   = hexParaImVec4(t.getCorHex());
-                    label = "T" + std::to_string(t.getID())
+                    label = t.getID()
                             + "(restam: " + std::to_string(t.getTempoRestante()) + ")";
                     break;
                 }
@@ -157,10 +157,10 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
         ImGui::TableNextRow();
 
         ImGui::TableSetColumnIndex(0);
-        ImGui::Text("%d", t.getID());
+        ImGui::Text("%s", t.getID().c_str());
 
         ImGui::TableSetColumnIndex(1);
-        std::string btnId = "##cor" + std::to_string(t.getID());
+        std::string btnId = "##cor" + t.getID();
         ImGui::ColorButton(btnId.c_str(), hexParaImVec4(t.getCorHex()),
                            ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel,
                            ImVec2(20, 20));
@@ -195,7 +195,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
         // edição manual do estado
         ImGui::TableSetColumnIndex(8);
         int estadoIdx = static_cast<int>(t.getEstadoAtual());
-        std::string comboId = "##edit" + std::to_string(t.getID());
+        std::string comboId = "##edit" + t.getID();
         ImGui::SetNextItemWidth(130.f);
         if (ImGui::Combo(comboId.c_str(), &estadoIdx, estados, 5)) {
             g->editarEstadoTarefa(t.getID(), static_cast<EstadoTarefa>(estadoIdx));

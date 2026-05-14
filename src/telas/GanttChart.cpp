@@ -17,7 +17,7 @@ static ImVec4 hexParaImVec4Gantt(const std::string& hex)
 }
 
 // retorna  estado de tarefa a partir do snapshot
-static EstadoTarefa estadoDaTarefa(const EstadoSistema& snap, int id)
+static EstadoTarefa estadoDaTarefa(const EstadoSistema& snap, const std::string& id)
 {
     for (const auto& ts : snap.tarefas)
         if (ts.id == id) return ts.estado;
@@ -187,7 +187,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
     // termTick[row] = primeiro tick em que a tarefa aparece como Terminada; -1 se ainda não.
     std::vector<int> termTick(nRows, -1);
     for (int row = 0; row < nRows && tickMax > 0; ++row) {
-        int id = tarefas[row]->getID();
+        std::string id = tarefas[row]->getID();
         for (int t = 1; t <= tickMax && termTick[row] == -1; ++t)
             if (estadoDaTarefa(hist[(size_t)t], id) == EstadoTarefa::Terminada)
                 termTick[row] = t;
@@ -211,7 +211,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
     for (int row = 0; row < nRows; ++row) {
         const Tarefa* task = tarefas[row];
         float rowY = origin.y + HEADER_H + row * CELL_H;
-        int   id   = task->getID();
+        std::string id = task->getID();
 
         // fundo alternado
         ImU32 rowBg = (row % 2 == 0) ? IM_COL32(45, 45, 45, 255)
@@ -219,10 +219,8 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
         dl->AddRectFilled(ImVec2(origin.x, rowY),
                           ImVec2(origin.x + totalW, rowY + CELL_H), rowBg);
 
-        char label[16];
-        std::snprintf(label, sizeof(label), "T%d", id);
         dl->AddText(ImVec2(origin.x + 5.f, rowY + (CELL_H - 13.f) * 0.5f),
-                    IM_COL32(220, 220, 220, 255), label);
+                    IM_COL32(220, 220, 220, 255), id.c_str());
 
         if (tickMax == 0) continue;
 
@@ -262,7 +260,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
             }
 
             // Ícone de sorteio ◆ — no canto superior direito da célula
-            for (int sid : snap.sorteadas) {
+            for (const std::string& sid : snap.sorteadas) {
                 if (sid == id) {
                     iconSorteio(dl, cellX + CELL_W - 5.f, rowY + 5.f);
                     break;

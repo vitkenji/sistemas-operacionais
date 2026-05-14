@@ -5,7 +5,7 @@
 
 // snapshot do estado de uma tarefa em um instante
 struct SnapshotTarefa {
-    int          id;
+    std::string  id;
     EstadoTarefa estado;
     int          tempoRestante;
     int          quantumRestante;
@@ -13,9 +13,9 @@ struct SnapshotTarefa {
 
 // snapshot do sistema depois de um tick.
 struct EstadoSistema {
-    int                         tempoClock;
-    std::map<int, int>          alocacaoCPU;  // qual tarefa esta em cada CPU
-    std::map<int, bool>         cpuLigada;    // quais CPUs estao ligadas
-    std::vector<SnapshotTarefa> tarefas; // o snapshot atual de cada tarefa
-    std::vector<int>            sorteadas; //quais tarefas tiveram empate resolvido por sorteio nesse tick
+    int                              tempoClock;
+    std::map<int, std::string>       alocacaoCPU;  // cpu_id -> tarefa_id
+    std::map<int, bool>              cpuLigada;
+    std::vector<SnapshotTarefa>      tarefas;
+    std::vector<std::string>         sorteadas;
 };

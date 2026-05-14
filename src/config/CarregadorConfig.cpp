@@ -63,12 +63,17 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
                     " invalida: esperado id;cor;ingresso;duracao[;prioridade][;lista_eventos]";
                 return config;
             }
+            std::string id  = campos[0];
+            if (id.empty()) {
+                config.erroMensagem = "Linha " + std::to_string(numeroLinha) +
+                    ": id nao pode ser vazio";
+                return config;
+            }
             try {
-                int         id         = std::stoi(campos[0]);
-                std::string cor        = campos[1];
-                int         ingresso   = std::stoi(campos[2]);
-                int         duracao    = std::stoi(campos[3]);
-                int         prioridade = 0;
+                std::string      cor        = campos[1];
+                int              ingresso   = std::stoi(campos[2]);
+                int              duracao    = std::stoi(campos[3]);
+                int              prioridade = 0;
 
                 if (campos.size() >= 5 && !campos[4].empty())
                     prioridade = std::stoi(campos[4]);

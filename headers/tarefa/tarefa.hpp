@@ -20,8 +20,8 @@ enum class EstadoTarefa {
 class Tarefa {
 private:
     // atributos definidos no txt, nunca mudam
-    int          ID;
-    std::string  corHex;      
+    std::string  ID;
+    std::string  corHex;
     int          ingresso;   
     int          duracao; 
     int          prioridade;
@@ -37,11 +37,11 @@ private:
     std::map<int, EstadoTarefa> historicoNoTempo;
 
 public:
-    Tarefa(int id, std::string corHex, int ingresso, int duracao,
+    Tarefa(std::string id, std::string corHex, int ingresso, int duracao,
            int prioridade, std::vector<int> lista_eventos);
     ~Tarefa();
 
-    int         getID()         const;
+    std::string getID()         const;
     std::string getCorHex()     const;
     int         getIngresso()   const;
     int         getDuracao()    const;

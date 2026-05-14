@@ -150,11 +150,11 @@ void TelaInicial::desenharResultado()
             ImGui::TableNextRow();
 
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%d", t.getID());
+            ImGui::Text("%s", t.getID().c_str());
 
             ImGui::TableSetColumnIndex(1);
             ImVec4 cor = hexParaImVec4(t.getCorHex());
-            std::string btnId = "##cor" + std::to_string(t.getID());
+            std::string btnId = "##cor" + t.getID();
             ImGui::ColorButton(btnId.c_str(), cor,
                                ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel,
                                ImVec2(18, 18));

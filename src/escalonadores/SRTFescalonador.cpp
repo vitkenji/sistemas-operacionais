@@ -63,7 +63,7 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
 
     // sorteia
     std::uniform_int_distribution<int> dist(0, 1'000'000);
-    std::map<int, int> aleatorio;
+    std::map<std::string, int> aleatorio;
     for (const Tarefa* t : candidatas)
         aleatorio[t->getID()] = dist(rng());
 
@@ -86,18 +86,18 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
     }
 
     // qual tarefa está rodando em qual CPU atualmente
-    std::map<int, int> tarefaParaCPU;
+    std::map<std::string, int> tarefaParaCPU;
     for (const auto& cpu : cpus)
-        if (cpu.tarefaAtualID != -1)
+        if (!cpu.tarefaAtualID.empty())
             tarefaParaCPU[cpu.tarefaAtualID] = cpu.id;
 
     std::set<int> cpusUsados;
-    std::set<int> tarefasAlocadas;
+    std::set<std::string> tarefasAlocadas;
 
     // mantém no mesmo CPU as tarefas selecionadas que já estavam rodando.
     // Isso evita troca de contexto quando não há motivo para trocar de CPU.
     for (int i = 0; i < qtde; ++i) {
-        int tid = candidatas[i]->getID();
+        std::string tid = candidatas[i]->getID();
         auto it = tarefaParaCPU.find(tid);
         if (it != tarefaParaCPU.end()) {
             res.alocacao[it->second] = tid;
@@ -114,7 +114,7 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
 
     int idx = 0;
     for (int i = 0; i < qtde && idx < (int)cpusLivres.size(); ++i) {
-        int tid = candidatas[i]->getID();
+        std::string tid = candidatas[i]->getID();
         if (!tarefasAlocadas.count(tid)) {
             res.alocacao[cpusLivres[idx++]] = tid;
             tarefasAlocadas.insert(tid);
@@ -123,7 +123,7 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
 
     // CPUs que sobraram ficam ociosas 
     while (idx < (int)cpusLivres.size())
-        res.alocacao[cpusLivres[idx++]] = -1;
+        res.alocacao[cpusLivres[idx++]] = "";
 
     return res;
 }

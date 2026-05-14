@@ -25,12 +25,12 @@ private:
 
     void          computarProximoTick();
     void          aplicarEstado(const EstadoSistema& estado);
-    EstadoSistema buildSnapshot(const std::vector<int>& sorteadas = {}) const;
+    EstadoSistema buildSnapshot(const std::vector<std::string>& sorteadas = {}) const;
     bool          todasTerminadas() const;
     bool          hasTarefaProntaOuExecutando() const;
     int           tickLimite() const;
 
-    Tarefa* findTarefa(int id);
+    Tarefa* findTarefa(const std::string& id);
     CPU*    findCPU(int id);
 
 public:
@@ -46,7 +46,7 @@ public:
     void executarCompleto();
 
     // edicao manual do estado de uma tarefa (invalida história futura)
-    void editarEstadoTarefa(int tarefaId, EstadoTarefa novoEstado);
+    void editarEstadoTarefa(const std::string& tarefaId, EstadoTarefa novoEstado);
 
     bool podeAvancar()         const;
     bool podeRetroceder()      const;

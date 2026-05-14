@@ -1,9 +1,9 @@
 #include "tarefa/tarefa.hpp"
 #include <utility>
 
-Tarefa::Tarefa(int id, std::string corHex, int ingresso, int duracao,
+Tarefa::Tarefa(std::string id, std::string corHex, int ingresso, int duracao,
                int prioridade, std::vector<int> lista_eventos)
-    : ID(id),
+    : ID(std::move(id)),
       corHex(std::move(corHex)),
       ingresso(ingresso),
       duracao(duracao),
@@ -17,7 +17,7 @@ Tarefa::Tarefa(int id, std::string corHex, int ingresso, int duracao,
 
 Tarefa::~Tarefa() = default;
 
-int         Tarefa::getID()         const { return ID; }
+std::string Tarefa::getID()         const { return ID; }
 std::string Tarefa::getCorHex()     const { return corHex; }
 int         Tarefa::getIngresso()   const { return ingresso; }
 int         Tarefa::getDuracao()    const { return duracao; }

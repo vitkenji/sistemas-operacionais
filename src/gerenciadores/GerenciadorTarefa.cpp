@@ -31,7 +31,7 @@ GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
       simulacaoCompleta(false)
 {
     for (int i = 0; i < config.qtde_cpus; ++i)
-        cpus.push_back({i, -1, true});
+        cpus.push_back({i, "", true});
 
     // historico[0] representa o estado antes de qualquer tick ser executado.
     // a cada avanço, um novo snapshot é empilhado em historico[T].
@@ -86,7 +86,7 @@ void GerenciadorTarefa::executarCompleto()
 
 // edicao manual
 // snapshots futuros são descartados
-void GerenciadorTarefa::editarEstadoTarefa(int tarefaId, EstadoTarefa novoEstado)
+void GerenciadorTarefa::editarEstadoTarefa(const std::string& tarefaId, EstadoTarefa novoEstado)
 {
     Tarefa* t = findTarefa(tarefaId);
     if (!t) return;
@@ -97,7 +97,7 @@ void GerenciadorTarefa::editarEstadoTarefa(int tarefaId, EstadoTarefa novoEstado
     {
         for (auto& cpu : cpus)
             if (cpu.tarefaAtualID == tarefaId)
-                cpu.tarefaAtualID = -1;
+                cpu.tarefaAtualID = "";
     }
 
     t->setEstadoAtual(novoEstado);
@@ -120,7 +120,7 @@ void GerenciadorTarefa::computarProximoTick()
             t.setEstadoAtual(EstadoTarefa::Terminada);
             for (auto& cpu : cpus)
                 if (cpu.tarefaAtualID == t.getID())
-                    cpu.tarefaAtualID = -1;
+                    cpu.tarefaAtualID = "";
         }
     }
 
@@ -147,14 +147,14 @@ void GerenciadorTarefa::computarProximoTick()
         CPU* cpu = findCPU(cpuId);
         if (!cpu) continue;
 
-        if (tarefaId != -1 && tarefaId == cpu->tarefaAtualID
+        if (!tarefaId.empty() && tarefaId == cpu->tarefaAtualID
             && findTarefa(tarefaId)->getEstadoAtual() == EstadoTarefa::Execucao) {
             // mesma tarefa continua executando: quantum segue contando
             continue;
         }
 
         // tarefa mudou: preempta a tarefa anterior se havia uma rodando
-        if (cpu->tarefaAtualID != -1) {
+        if (!cpu->tarefaAtualID.empty()) {
             Tarefa* anterior = findTarefa(cpu->tarefaAtualID);
             if (anterior && anterior->getEstadoAtual() == EstadoTarefa::Execucao)
                 anterior->setEstadoAtual(EstadoTarefa::Pronta);
@@ -162,7 +162,7 @@ void GerenciadorTarefa::computarProximoTick()
 
         cpu->tarefaAtualID = tarefaId;
 
-        if (tarefaId == -1) {
+        if (tarefaId.empty()) {
             // CPU sem tarefa: desliga
             cpu->ligada = false;
         } else {
@@ -207,7 +207,7 @@ void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
     for (auto& cpu : cpus) {
         auto itA = estado.alocacaoCPU.find(cpu.id);
         auto itL = estado.cpuLigada.find(cpu.id);
-        cpu.tarefaAtualID = (itA != estado.alocacaoCPU.end()) ? itA->second : -1;
+        cpu.tarefaAtualID = (itA != estado.alocacaoCPU.end()) ? itA->second : "";
         cpu.ligada        = (itL != estado.cpuLigada.end())   ? itL->second : true;
     }
 
@@ -216,7 +216,7 @@ void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
 }
 
 // constrói snapshot completo do estado atual do sistema.
-EstadoSistema GerenciadorTarefa::buildSnapshot(const std::vector<int>& sorteadas) const
+EstadoSistema GerenciadorTarefa::buildSnapshot(const std::vector<std::string>& sorteadas) const
 {
     EstadoSistema snap;
     snap.tempoClock = tickAtual;
@@ -266,7 +266,7 @@ int GerenciadorTarefa::tickLimite() const
     return maxIngresso + soma + 10;
 }
 
-Tarefa* GerenciadorTarefa::findTarefa(int id)
+Tarefa* GerenciadorTarefa::findTarefa(const std::string& id)
 {
     for (auto& t : listaTarefas)
         if (t.getID() == id) return &t;

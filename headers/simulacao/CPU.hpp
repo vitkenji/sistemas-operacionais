@@ -1,7 +1,8 @@
 #pragma once
+#include <string>
 
 struct CPU {
-    int  id; //id do cpu
-    int  tarefaAtualID;  // id da tarefa executando no cpu ; -1 = ociosa ou desligada
-    bool ligada;  
+    int         id;
+    std::string tarefaAtualID;  // id da tarefa executando no cpu; "" = ociosa ou desligada
+    bool        ligada;
 };

@@ -7,13 +7,11 @@
 // resultado devolvido por Escalonador::escalonar() a cada tick
 struct ResultadoEscalonamento {
     // mapeamento cpu_id -> tarefa_id para este tick.
-    // tarefa_id == -1 -> CPU fica ociosa.
-    std::map<int, int> alocacao;
+    // tarefa_id == "" -> CPU fica ociosa.
+    std::map<int, std::string> alocacao;
 
     // IDs das tarefas cujo empate foi resolvido por sorteio neste tick.
-    // o motor repassa essa lista ao snapshot do histórico para que o
-    // gráfico de Gantt exiba o ícone de sorteio na célula correspondente.
-    std::vector<int> sorteadas;
+    std::vector<std::string> sorteadas;
 };
 
 class Escalonador {
