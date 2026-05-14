@@ -11,8 +11,8 @@ struct ResultadoEscalonamento {
     std::map<int, int> alocacao;
 
     // IDs das tarefas cujo empate foi resolvido por sorteio neste tick.
-    // O motor repassa essa lista ao snapshot do histórico para que o
-    // Gráfico de Gantt exiba o ícone de sorteio na célula correspondente.
+    // o motor repassa essa lista ao snapshot do histórico para que o
+    // gráfico de Gantt exiba o ícone de sorteio na célula correspondente.
     std::vector<int> sorteadas;
 };
 

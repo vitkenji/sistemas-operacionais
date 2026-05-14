@@ -112,6 +112,8 @@ void TelaInicial::desenharFormulario()
     ImGui::TextDisabled("  Linha 1: [algoritmo=priop][;quantum=1][;qtde_cpus=2]");
     ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao[;prioridade=0][;eventos]");
     ImGui::TextDisabled("  Algoritmos: SRTF, PRIOP  |  qtde_cpus >= 2");
+    ImGui::TextDisabled("  * Digite ;; na primeira linha para usar");
+    ImGui::TextDisabled("  valores padrão sugeridos: priop;1;2");
 }
 
 //tela após importar arquivo

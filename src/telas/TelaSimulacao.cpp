@@ -131,7 +131,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
     // nomes dos estados para o combo de edição manual
     static const char* estados[] = {"Nova","Pronta","Em Execucao","Suspensa","Terminada"};
 
-    if (!ImGui::BeginTable("tblTarefas", 8,
+    if (!ImGui::BeginTable("tblTarefas", 9,
             ImGuiTableFlags_Borders    |
             ImGuiTableFlags_RowBg      |
             ImGuiTableFlags_ScrollY    |
@@ -147,6 +147,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
     ImGui::TableSetupColumn("Quantum",    ImGuiTableColumnFlags_WidthFixed, 55.f);
     ImGui::TableSetupColumn("CPU",        ImGuiTableColumnFlags_WidthFixed, 40.f);
     ImGui::TableSetupColumn("Prioridade", ImGuiTableColumnFlags_WidthFixed, 75.f);
+    ImGui::TableSetupColumn("Ingresso",   ImGuiTableColumnFlags_WidthFixed, 65.f);
     ImGui::TableSetupColumn("Editar",     ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableHeadersRow();
 
@@ -188,8 +189,11 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
         ImGui::TableSetColumnIndex(6);
         ImGui::Text("%d", t.getPrioridade());
 
-        // edição manual do estado
         ImGui::TableSetColumnIndex(7);
+        ImGui::Text("%d", t.getIngresso());
+
+        // edição manual do estado
+        ImGui::TableSetColumnIndex(8);
         int estadoIdx = static_cast<int>(t.getEstadoAtual());
         std::string comboId = "##edit" + std::to_string(t.getID());
         ImGui::SetNextItemWidth(130.f);
@@ -243,7 +247,7 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
                            "Simulação concluída.");
     } else {
-        ImGui::TextDisabled("Tick %d  |  Use 'Avancar >>' para prosseguir passo a passo.",
+        ImGui::TextDisabled("Tick %d",
                             g->getTickAtual());
     }
 
@@ -254,7 +258,7 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     static char exportPath[256] = "gantt.png";
     ImGui::SetNextItemWidth(220.f);
-    ImGui::InputText("##exportpath", exportPath, sizeof(exportPath));
+    ImGui::InputText("##exportpath", exportPath, sizeof(exportPath), ImGuiInputTextFlags_ReadOnly);
     ImGui::SameLine();
 
     ImGui::BeginDisabled(!g->isSimulacaoCompleta());

@@ -270,11 +270,13 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
             }
         }
 
-        // icone de chegada no topo da célula do tick de ingresso
-        // tarefas com ingresso=0 são tratadas como ingresso=1 (já presentes antes do primeiro tick)
+        // icone de chegada: ingresso=0 aparece à direita do label; demais, na coluna do ingresso
         int ingresso = task->getIngresso();
-        if (ingresso <= tickMax) {
-            int visCol = std::max(1, ingresso);   // coluna visível mínima = 1
+        if (ingresso == 0) {
+            float cx = origin.x + LABEL_W - 6.f;
+            iconChegada(dl, cx, rowY + 1.f);
+        } else if (ingresso <= tickMax) {
+            int visCol = std::max(1, ingresso);
             float cx = origin.x + LABEL_W + (visCol - 1) * CELL_W + CELL_W * 0.5f;
             iconChegada(dl, cx, rowY + 1.f);
         }
@@ -355,13 +357,6 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
                     IM_COL32(80, 80, 80, 200));
     }
 
-    // quando nenhum tick foi simulado ainda 
-    if (tickMax == 0) {
-        dl->AddText(
-            ImVec2(origin.x + LABEL_W + 8.f, origin.y + HEADER_H + 10.f),
-            IM_COL32(120, 120, 120, 200),
-            "Use 'Avancar >>' para iniciar a simulacao");
-    }
 
     ImGui::EndChild();
 

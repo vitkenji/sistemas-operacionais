@@ -129,9 +129,8 @@ void GerenciadorTarefa::computarProximoTick()
     for (auto& t : listaTarefas) {
         if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getQuantumRestante() == 0) {
             t.setEstadoAtual(EstadoTarefa::Pronta);
-            for (auto& cpu : cpus)
-                if (cpu.tarefaAtualID == t.getID())
-                    cpu.tarefaAtualID = -1;
+            // não limpa cpu.tarefaAtualID para preservar a afinidade CPU↔tarefa
+            // o escalonador usa esse vínculo para evitar troca de CPU desnecessária
         }
     }
 
@@ -148,8 +147,9 @@ void GerenciadorTarefa::computarProximoTick()
         CPU* cpu = findCPU(cpuId);
         if (!cpu) continue;
 
-        if (tarefaId != -1 && tarefaId == cpu->tarefaAtualID) {
-            // mesma tarefa continua: quantum segue contando
+        if (tarefaId != -1 && tarefaId == cpu->tarefaAtualID
+            && findTarefa(tarefaId)->getEstadoAtual() == EstadoTarefa::Execucao) {
+            // mesma tarefa continua executando: quantum segue contando
             continue;
         }
 
