@@ -9,10 +9,12 @@ private:
     int altura;
     std::string titulo;
 
-    std::string caminhoCaptura;  // não vazio = capturar antes do próximo swap
+    std::string caminhoCaptura;
+    float capturaMinX = 0, capturaMinY = 0;
+    float capturaMaxX = 0, capturaMaxY = 0;
 
-    // le o framebuffer atual e salva em PNG. Deve ser chamado após RenderDrawData
-    // e antes de SwapBuffers, para garantir que o frame está completo no back-buffer.
+    // le o framebuffer atual e salva em PNG, recortando para a região indicada.
+    // Deve ser chamado após RenderDrawData e antes de SwapBuffers.
     void capturarFramebuffer(const std::string& caminho, int w, int h);
 
 public:
@@ -27,6 +29,8 @@ public:
     void iniciarFrame();
     void renderizar();
 
-    // agenda captura do próximo frame renderizado para o arquivo indicado.
-    void pedirCaptura(const std::string& caminho);
+    // agenda captura do próximo frame para o arquivo indicado.
+    // minX/minY/maxX/maxY: recorte em pixels lógicos de tela; todos zero = tela inteira.
+    void pedirCaptura(const std::string& caminho,
+                      float minX, float minY, float maxX, float maxY);
 };

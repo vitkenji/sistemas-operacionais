@@ -194,12 +194,24 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
 
         // edição manual do estado
         ImGui::TableSetColumnIndex(8);
-        int estadoIdx = static_cast<int>(t.getEstadoAtual());
+        EstadoTarefa estadoAtual = t.getEstadoAtual();
+        bool terminada   = estadoAtual == EstadoTarefa::Terminada;
+        bool bloqueaNova = (estadoAtual == EstadoTarefa::Pronta   ||
+                            estadoAtual == EstadoTarefa::Execucao ||
+                            estadoAtual == EstadoTarefa::Suspensa);
         std::string comboId = "##edit" + t.getID();
         ImGui::SetNextItemWidth(130.f);
-        if (ImGui::Combo(comboId.c_str(), &estadoIdx, estados, 5)) {
-            g->editarEstadoTarefa(t.getID(), static_cast<EstadoTarefa>(estadoIdx));
+        ImGui::BeginDisabled(terminada);
+        if (ImGui::BeginCombo(comboId.c_str(), nomeEstado(estadoAtual))) {
+            for (int i = 0; i < 5; ++i) {
+                ImGui::BeginDisabled(i == 0 && bloqueaNova);
+                if (ImGui::Selectable(estados[i], estadoAtual == static_cast<EstadoTarefa>(i)))
+                    g->editarEstadoTarefa(t.getID(), static_cast<EstadoTarefa>(i));
+                ImGui::EndDisabled();
+            }
+            ImGui::EndCombo();
         }
+        ImGui::EndDisabled();
     }
 
     ImGui::EndTable();
@@ -263,9 +275,13 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
 
     ImGui::BeginDisabled(!g->isSimulacaoCompleta());
     if (ImGui::Button("Exportar PNG", ImVec2(120, 0))) {
-        flagExportarPNG      = true;
-        exportacaoConcluida  = true;
-        ultimaExportacao     = exportPath;
+        flagExportarPNG     = true;
+        exportacaoConcluida = true;
+        ultimaExportacao    = exportPath;
+        ganttMinX = gantt.getUltimaMinX();
+        ganttMinY = gantt.getUltimaMinY();
+        ganttMaxX = gantt.getUltimaMaxX();
+        ganttMaxY = gantt.getUltimaMaxY();
     }
     ImGui::EndDisabled();
 
@@ -276,10 +292,10 @@ void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
     }
 }
 
-// exportacao 
-std::string TelaSimulacao::consumirPedidoExportacao()
+// exportacao
+PedidoExportacao TelaSimulacao::consumirPedidoExportacao()
 {
-    if (!flagExportarPNG) return "";
+    if (!flagExportarPNG) return {};
     flagExportarPNG = false;
-    return ultimaExportacao;
+    return { ultimaExportacao, ganttMinX, ganttMinY, ganttMaxX, ganttMaxY };
 }

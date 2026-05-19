@@ -2288,8 +2288,10 @@ CMakeFiles/ProjetoImGui.dir/src/gerenciadores/gerenciadorGrafico.cpp.obj: C:/Use
   C:/msys64/mingw64/include/_mingw_stdarg.h \
   C:/msys64/mingw64/include/_timeval.h \
   C:/msys64/mingw64/include/assert.h \
+  C:/msys64/mingw64/include/c++/15.2.0/algorithm \
   C:/msys64/mingw64/include/c++/15.2.0/backward/binders.h \
   C:/msys64/mingw64/include/c++/15.2.0/bit \
+  C:/msys64/mingw64/include/c++/15.2.0/bits/algorithmfwd.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/alloc_traits.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/allocator.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/basic_ios.h \
@@ -2332,20 +2334,24 @@ CMakeFiles/ProjetoImGui.dir/src/gerenciadores/gerenciadorGrafico.cpp.obj: C:/Use
   C:/msys64/mingw64/include/c++/15.2.0/bits/requires_hosted.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/specfun.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/std_abs.h \
+  C:/msys64/mingw64/include/c++/15.2.0/bits/stl_algo.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_algobase.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_bvector.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_construct.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_function.h \
+  C:/msys64/mingw64/include/c++/15.2.0/bits/stl_heap.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_iterator.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_iterator_base_funcs.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_iterator_base_types.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_pair.h \
+  C:/msys64/mingw64/include/c++/15.2.0/bits/stl_tempbuf.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_uninitialized.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stl_vector.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/streambuf.tcc \
   C:/msys64/mingw64/include/c++/15.2.0/bits/streambuf_iterator.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/string_view.tcc \
   C:/msys64/mingw64/include/c++/15.2.0/bits/stringfwd.h \
+  C:/msys64/mingw64/include/c++/15.2.0/bits/uniform_int_dist.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/uses_allocator.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/uses_allocator_args.h \
   C:/msys64/mingw64/include/c++/15.2.0/bits/utility.h \
@@ -2379,6 +2385,8 @@ CMakeFiles/ProjetoImGui.dir/src/gerenciadores/gerenciadorGrafico.cpp.obj: C:/Use
   C:/msys64/mingw64/include/c++/15.2.0/math.h \
   C:/msys64/mingw64/include/c++/15.2.0/new \
   C:/msys64/mingw64/include/c++/15.2.0/ostream \
+  C:/msys64/mingw64/include/c++/15.2.0/pstl/execution_defs.h \
+  C:/msys64/mingw64/include/c++/15.2.0/pstl/glue_algorithm_defs.h \
   C:/msys64/mingw64/include/c++/15.2.0/pstl/pstl_config.h \
   C:/msys64/mingw64/include/c++/15.2.0/stdexcept \
   C:/msys64/mingw64/include/c++/15.2.0/stdlib.h \

@@ -172,6 +172,7 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
     float totalH = HEADER_H + nRows * CELL_H + 6.f + nCPUs * CPU_ROW_H;
 
     float childH = std::min(totalH + 20.f, 420.f);
+    ImVec2 regionStart = ImGui::GetCursorScreenPos();
     ImGui::BeginChild("##gantt_canvas", ImVec2(0.f, childH), false,
                       ImGuiWindowFlags_HorizontalScrollbar);
 
@@ -358,5 +359,12 @@ void GanttChart::desenhar(GerenciadorTarefa* g)
 
     ImGui::EndChild();
 
+    float regionWidth = ImGui::GetItemRectSize().x;
     desenharLegenda();
+    ImVec2 regionEnd = ImGui::GetCursorScreenPos();
+
+    ultimaMinX = regionStart.x;
+    ultimaMinY = regionStart.y;
+    ultimaMaxX = regionStart.x + regionWidth;
+    ultimaMaxY = regionEnd.y;
 }

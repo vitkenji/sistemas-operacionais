@@ -25,9 +25,11 @@ int main()
             GerenciadorTarefa* g = GerenciadorTarefa::getInstance();
             bool voltar = telaSimulacao.desenhar(g);
 
-            std::string pngPath = telaSimulacao.consumirPedidoExportacao();
-            if (!pngPath.empty())
-                gerenciadorGrafico.pedirCaptura(pngPath);
+            PedidoExportacao pedido = telaSimulacao.consumirPedidoExportacao();
+            if (!pedido.caminho.empty())
+                gerenciadorGrafico.pedirCaptura(pedido.caminho,
+                                                pedido.minX, pedido.minY,
+                                                pedido.maxX, pedido.maxY);
 
             if (voltar)
                 telaInicial.resetar();

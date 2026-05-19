@@ -4,6 +4,7 @@
 #include "imgui_impl_opengl3.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
+#include <algorithm>
 #include <cstring>
 #include <iostream>
 #include <vector>
@@ -97,25 +98,52 @@ void GerenciadorGrafico::renderizar() {
     glfwSwapBuffers(window);
 }
 
-void GerenciadorGrafico::pedirCaptura(const std::string& caminho)
+void GerenciadorGrafico::pedirCaptura(const std::string& caminho,
+                                       float minX, float minY, float maxX, float maxY)
 {
     caminhoCaptura = caminho;
+    capturaMinX = minX; capturaMinY = minY;
+    capturaMaxX = maxX; capturaMaxY = maxY;
 }
 
 void GerenciadorGrafico::capturarFramebuffer(const std::string& caminho, int w, int h)
 {
-    int stride = w * 4;
-    std::vector<unsigned char> pixels((size_t)(stride * h));
+    // escala lógico → físico (geralmente 1.0 no Windows; >1 em telas HiDPI)
+    ImGuiIO& io = ImGui::GetIO();
+    float sx = io.DisplayFramebufferScale.x;
+    float sy = io.DisplayFramebufferScale.y;
+
+    // determina a região de recorte em pixels físicos
+    int x0, y0, cw, ch;
+    if (capturaMaxX > capturaMinX && capturaMaxY > capturaMinY) {
+        const float pad = 6.f;
+        x0 = std::max(0,  (int)((capturaMinX - pad) * sx));
+        y0 = std::max(0,  (int)((capturaMinY - pad) * sy));
+        int x1 = std::min(w, (int)((capturaMaxX + pad) * sx));
+        int y1 = std::min(h, (int)((capturaMaxY + pad) * sy));
+        cw = x1 - x0;
+        ch = y1 - y0;
+    } else {
+        x0 = 0; y0 = 0; cw = w; ch = h;
+    }
+
+    if (cw <= 0 || ch <= 0) { x0 = 0; y0 = 0; cw = w; ch = h; }
+
+    // lê o framebuffer inteiro (OpenGL: y=0 é a base da tela)
+    int fullStride = w * 4;
+    std::vector<unsigned char> pixels((size_t)(fullStride * h));
     glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
 
-    // OpenGL: origem em baixo-esquerda -> inverte linhas para o formato PNG (topo-esquerda)
-    std::vector<unsigned char> flipped((size_t)(stride * h));
-    for (int y = 0; y < h; ++y)
-        std::memcpy(flipped.data() + y * stride,
-                    pixels.data() + (h - 1 - y) * stride,
-                    (size_t)stride);
+    // recorta e inverte Y (OpenGL base-esquerda → PNG topo-esquerda)
+    int outStride = cw * 4;
+    std::vector<unsigned char> out((size_t)(outStride * ch));
+    for (int row = 0; row < ch; ++row) {
+        int glRow = h - 1 - (y0 + row);
+        const unsigned char* src = pixels.data() + glRow * fullStride + x0 * 4;
+        std::memcpy(out.data() + row * outStride, src, (size_t)outStride);
+    }
 
-    if (!stbi_write_png(caminho.c_str(), w, h, 4, flipped.data(), stride))
+    if (!stbi_write_png(caminho.c_str(), cw, ch, 4, out.data(), outStride))
         std::cerr << "[GerenciadorGrafico] Falha ao salvar PNG: " << caminho << '\n';
     else
         std::cout << "[GerenciadorGrafico] Gantt exportado: " << caminho << '\n';
