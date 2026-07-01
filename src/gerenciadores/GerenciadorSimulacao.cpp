@@ -113,24 +113,31 @@ void GerenciadorSimulacao::editarEstadoTarefa(const std::string& tarefaId, Estad
 void GerenciadorSimulacao::computarProximoTick()
 {
     int T = tickAtual + 1;
+    bool escalonadorPreemptivo = pEscalonador->isPreemptivo();
+    bool deveReescalonar = false;
+    ResultadoEscalonamento res;
 
     // tarefas que finalizaram ao final do tick anterior
     for (auto& t : listaTarefas) {
         if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getTempoRestante() == 0) {
             t.setEstadoAtual(EstadoTarefa::Terminada);
+            deveReescalonar = true;
             for (auto& cpu : cpus)
                 if (cpu.tarefaAtualID == t.getID())
                     cpu.tarefaAtualID = "";
         }
     }
 
-    // preempção por quantum expirado
-    // a tarefa volta para Pronta e a CPU é liberada
-    for (auto& t : listaTarefas) {
-        if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getQuantumRestante() == 0) {
-            t.setEstadoAtual(EstadoTarefa::Pronta);
-            // não limpa cpu.tarefaAtualID para preservar a afinidade CPU↔tarefa
-            // o escalonador usa esse vínculo para evitar troca de CPU desnecessária
+    // Em escalonadores preemptivos, quantum expirado abre um ponto de reescalonamento.
+    // Em cooperativos, a tarefa continua executando até terminar.
+    if (escalonadorPreemptivo) {
+        for (auto& t : listaTarefas) {
+            if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getQuantumRestante() == 0) {
+                t.setEstadoAtual(EstadoTarefa::Pronta);
+                deveReescalonar = true;
+                // não limpa cpu.tarefaAtualID para preservar a afinidade CPU↔tarefa
+                // o escalonador usa esse vínculo para evitar troca de CPU desnecessária
+            }
         }
     }
 
@@ -139,37 +146,56 @@ void GerenciadorSimulacao::computarProximoTick()
         if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() < T)
             t.setEstadoAtual(EstadoTarefa::Pronta);
 
-    // chama o escalonador, que devolve mapa cpu_id -> tarefa_id para este tick, com o estado atual
-    ResultadoEscalonamento res = pEscalonador->escalonar(listaTarefas, cpus, T);
-
-    // aplica as decisões do escalonador: preempções e novas atribuições
-    for (auto& [cpuId, tarefaId] : res.alocacao) {
-        CPU* cpu = findCPU(cpuId);
-        if (!cpu) continue;
-
-        if (!tarefaId.empty() && tarefaId == cpu->tarefaAtualID
-            && findTarefa(tarefaId)->getEstadoAtual() == EstadoTarefa::Execucao) {
-            // mesma tarefa continua executando: quantum segue contando
-            continue;
+    bool temTarefaPronta = false;
+    for (const auto& t : listaTarefas) {
+        if (t.getEstadoAtual() == EstadoTarefa::Pronta) {
+            temTarefaPronta = true;
+            break;
         }
+    }
 
-        // tarefa mudou: preempta a tarefa anterior se havia uma rodando
-        if (!cpu->tarefaAtualID.empty()) {
-            Tarefa* anterior = findTarefa(cpu->tarefaAtualID);
-            if (anterior && anterior->getEstadoAtual() == EstadoTarefa::Execucao)
-                anterior->setEstadoAtual(EstadoTarefa::Pronta);
+    if (temTarefaPronta) {
+        for (const auto& cpu : cpus) {
+            if (cpu.tarefaAtualID.empty()) {
+                deveReescalonar = true;
+                break;
+            }
         }
+    }
 
-        cpu->tarefaAtualID = tarefaId;
+    if (deveReescalonar) {
+        // chama o escalonador somente quando há um evento que permite nova decisão
+        res = pEscalonador->escalonar(listaTarefas, cpus, T);
 
-        if (tarefaId.empty()) {
-            // CPU sem tarefa: desliga
-            cpu->ligada = false;
-        } else {
-            Tarefa* nova = findTarefa(tarefaId);
-            if (nova) {
-                nova->setEstadoAtual(EstadoTarefa::Execucao);
-                nova->setQuantumRestante(quantum);  // reinicia o quantum a cada nova atribuição
+        // aplica as decisões do escalonador: preempções e novas atribuições
+        for (auto& [cpuId, tarefaId] : res.alocacao) {
+            CPU* cpu = findCPU(cpuId);
+            if (!cpu) continue;
+
+            Tarefa* escolhida = tarefaId.empty() ? nullptr : findTarefa(tarefaId);
+            if (!tarefaId.empty() && !escolhida) continue;
+
+            if (escolhida && tarefaId == cpu->tarefaAtualID
+                && escolhida->getEstadoAtual() == EstadoTarefa::Execucao) {
+                // mesma tarefa continua executando: quantum segue contando
+                continue;
+            }
+
+            // tarefa mudou: preempta a tarefa anterior se havia uma rodando
+            if (!cpu->tarefaAtualID.empty()) {
+                Tarefa* anterior = findTarefa(cpu->tarefaAtualID);
+                if (anterior && anterior->getEstadoAtual() == EstadoTarefa::Execucao)
+                    anterior->setEstadoAtual(EstadoTarefa::Pronta);
+            }
+
+            cpu->tarefaAtualID = tarefaId;
+
+            if (tarefaId.empty()) {
+                // CPU sem tarefa: desliga
+                cpu->ligada = false;
+            } else if (escolhida) {
+                escolhida->setEstadoAtual(EstadoTarefa::Execucao);
+                escolhida->setQuantumRestante(quantum);  // reinicia o quantum a cada nova atribuição
                 cpu->ligada = true;
             }
         }

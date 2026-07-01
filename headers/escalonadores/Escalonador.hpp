@@ -18,6 +18,9 @@ class Escalonador {
 public:
     virtual ~Escalonador() = default;
 
+    // Indica se quantum expirado pode forçar um ponto de reescalonamento.
+    virtual bool isPreemptivo() const { return false; }
+
     // decide o mapeamento completo CPU -> tarefa para o tick atual.
     // chamado pelo motor após tratar chegadas e finalizações,
     // mas antes de decrementar os contadores de tempo e quantum.

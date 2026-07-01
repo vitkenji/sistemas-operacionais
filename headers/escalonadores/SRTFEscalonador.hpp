@@ -6,6 +6,8 @@ public:
     SRTFEscalonador()  = default;
     ~SRTFEscalonador() override = default;
 
+    bool isPreemptivo() const override { return false; }
+
     ResultadoEscalonamento escalonar(
         const std::vector<Tarefa>& tarefas,
         const std::vector<CPU>&    cpus,
