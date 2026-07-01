@@ -1,5 +1,6 @@
 #pragma once
 #include <map>
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -15,6 +16,23 @@ enum class EstadoTarefa {
     Terminada
 };
 
+enum class TipoAcaoTarefa {
+    SolicitarMutex,
+    LiberarMutex
+};
+
+enum class MotivoSuspensao {
+    Nenhum,
+    Manual,
+    Mutex
+};
+
+struct AcaoTarefa {
+    TipoAcaoTarefa tipo;
+    int mutexId;
+    int tempoRelativo;
+};
+
 // TCB: representa uma tarefa no simulador.
 // armazena atributos lidos do arquivo, estado corrente e o histórico
 class Tarefa {
@@ -26,11 +44,13 @@ private:
     int          duracao; 
     int          prioridade;
     int          prioridadeDinamica;
-    std::vector<int> lista_eventos;
+    std::vector<AcaoTarefa> acoes;
 
     EstadoTarefa estadoAtual;
+    MotivoSuspensao motivoSuspensao;
     int          tempoRestante;  
     int          quantumRestante; // 0 quando não está em execução
+    std::size_t  proximaAcaoIndex;
 
     // histórico por tick: map<tick, estado> alimenta o Gráfico de Gantt.
     // usar map com sobrescrita permite que undo/redo reescreva ticks já calculados
@@ -39,7 +59,7 @@ private:
 
 public:
     Tarefa(std::string id, std::string corHex, int ingresso, int duracao,
-           int prioridade, std::vector<int> lista_eventos);
+           int prioridade, std::vector<AcaoTarefa> acoes);
     ~Tarefa();
 
     std::string getID()         const;
@@ -48,6 +68,10 @@ public:
     int         getDuracao()    const;
     int         getPrioridade() const;
     int         getPrioridadeDinamica() const;
+    int         getTempoExecutado() const;
+    const std::vector<AcaoTarefa>& getAcoes() const;
+    std::size_t getProximaAcaoIndex() const;
+    MotivoSuspensao getMotivoSuspensao() const;
 
     EstadoTarefa getEstadoAtual()    const;
     int          getTempoRestante()   const;
@@ -57,8 +81,11 @@ public:
     void setTempoRestante(int t);
     void setQuantumRestante(int q);
     void setPrioridadeDinamica(int p);
+    void setProximaAcaoIndex(std::size_t index);
+    void setMotivoSuspensao(MotivoSuspensao motivo);
     void resetarPrioridadeDinamica();
     void incrementarPrioridadeDinamica(int incremento);
+    void avancarAcao();
     void decrementarTempoRestante();
     void decrementarQuantumRestante();
 

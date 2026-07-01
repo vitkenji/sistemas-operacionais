@@ -3,6 +3,7 @@
 #include "escalonadores/Escalonador.hpp"
 #include "simulacao/CPU.hpp"
 #include "simulacao/EstadoSistema.hpp"
+#include "simulacao/Mutex.hpp"
 #include <map>
 #include <string>
 #include <vector>
@@ -14,6 +15,7 @@ private:
 
     std::vector<Tarefa>        listaTarefas;
     std::vector<CPU>           cpus;
+    std::vector<Mutex>         mutexes;
     Escalonador*               pEscalonador;
     int                        quantum;
 
@@ -23,17 +25,22 @@ private:
     bool                       simulacaoCompleta;
 
     explicit GerenciadorSimulacao(const ConfigSimulacao& config);
-    Escalonador* criarEscalonador(const std::string& tipo);
+    Escalonador* criarEscalonador(const std::string& tipo, int alpha);
 
     void          computarProximoTick();
     void          aplicarEstado(const EstadoSistema& estado);
-    EstadoSistema buildSnapshot(const std::vector<std::string>& sorteadas = {}) const;
+    EstadoSistema buildSnapshot(const std::vector<std::string>& sorteadas = {},
+                                const std::vector<EventoGantt>& eventos = {}) const;
+    void          inicializarMutexes();
+    bool          processarAcoesMutex(std::vector<EventoGantt>& eventos);
     bool          todasTerminadas() const;
     bool          hasTarefaProntaOuExecutando() const;
     int           tickLimite() const;
 
     Tarefa* findTarefa(const std::string& id);
     CPU*    findCPU(int id);
+    Mutex*  findMutex(int id);
+    Mutex&  getOrCreateMutex(int id);
 
 public:
     ~GerenciadorSimulacao();

@@ -2,8 +2,11 @@
 #include "escalonadores/Escalonador.hpp"
 
 class PriopDEscalonador : public Escalonador {
+private:
+    int alpha;
+
 public:
-    PriopDEscalonador()  = default;
+    explicit PriopDEscalonador(int alpha = 1);
     ~PriopDEscalonador() override = default;
 
     bool isPreemptivo() const override { return true; }

@@ -109,9 +109,9 @@ void TelaInicial::desenharFormulario()
 
     ImGui::Spacing();
     ImGui::Separator();
-    ImGui::TextDisabled("  Linha 1: [algoritmo=priop][;quantum=1][;qtde_cpus=2]");
-    ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao[;prioridade=0][;eventos]");
-    ImGui::TextDisabled("  Algoritmos: SRTF, PRIOP, PRIOPD  |  qtde_cpus >= 2");
+    ImGui::TextDisabled("  Linha 1: [algoritmo=priop][;quantum=1][;qtde_cpus=2][;alpha=1]");
+    ImGui::TextDisabled("  Linhas seguintes: id;cor;ingresso;duracao[;prioridade=0][;acoes]");
+    ImGui::TextDisabled("  Algoritmos: SRTF, PRIOP, PRIOPD, PRIOPEnv  |  qtde_cpus >= 2");
     ImGui::TextDisabled("  * Digite ;; na primeira linha para usar");
     ImGui::TextDisabled("  valores padrão sugeridos: priop;1;2");
 }
@@ -126,6 +126,7 @@ void TelaInicial::desenharResultado()
     ImGui::Text("Algoritmo : %s", ultimaConfig.algoritmo.c_str());
     ImGui::Text("Quantum   : %d tick(s)", ultimaConfig.quantum);
     ImGui::Text("CPUs      : %d", ultimaConfig.qtde_cpus);
+    ImGui::Text("Alpha     : %d", ultimaConfig.alpha);
     ImGui::Text("Tarefas   : %d", static_cast<int>(ultimaConfig.tarefas.size()));
     ImGui::Spacing();
 
@@ -171,7 +172,15 @@ void TelaInicial::desenharResultado()
             ImGui::Text("%d", t.getPrioridade());
 
             ImGui::TableSetColumnIndex(5);
-            ImGui::TextDisabled(".");
+            std::string acoes;
+            for (const auto& acao : t.getAcoes()) {
+                if (!acoes.empty()) acoes += " ";
+                acoes += (acao.tipo == TipoAcaoTarefa::SolicitarMutex) ? "ML" : "MU";
+                if (acao.mutexId < 10) acoes += "0";
+                acoes += std::to_string(acao.mutexId) + ":" + std::to_string(acao.tempoRelativo);
+            }
+            if (acoes.empty()) ImGui::TextDisabled(".");
+            else               ImGui::Text("%s", acoes.c_str());
         }
 
         ImGui::EndTable();

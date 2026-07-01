@@ -4,8 +4,6 @@
 #include <random>
 #include <set>
 
-static constexpr int ALPHA_ENVELHECIMENTO = 1;
-
 // gerador de numeros aleatórios
 static std::mt19937& rng() {
     static std::mt19937 inst(std::random_device{}());
@@ -38,6 +36,11 @@ static bool empatePriopD(const Tarefa* a, const Tarefa* b)
         && aEx == bEx
         && a->getIngresso() == b->getIngresso()
         && a->getDuracao()  == b->getDuracao();
+}
+
+PriopDEscalonador::PriopDEscalonador(int alpha)
+    : alpha(alpha)
+{
 }
 
 ResultadoEscalonamento PriopDEscalonador::escalonar(
@@ -129,7 +132,7 @@ ResultadoEscalonamento PriopDEscalonador::escalonar(
         if (tarefasAlocadas.count(t.getID())) {
             t.resetarPrioridadeDinamica();
         } else if (t.getEstadoAtual() == EstadoTarefa::Pronta) {
-            t.incrementarPrioridadeDinamica(ALPHA_ENVELHECIMENTO);
+            t.incrementarPrioridadeDinamica(alpha);
         }
     }
 

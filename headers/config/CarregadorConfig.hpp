@@ -9,6 +9,7 @@ struct ConfigSimulacao {
     std::string algoritmo; 
     int quantum   = 1;
     int qtde_cpus = 2;
+    int alpha     = 1;
     std::vector<Tarefa> tarefas;
     bool valida = false;
     std::string erroMensagem;
@@ -23,6 +24,6 @@ public:
 private:
     static std::string              toLower(std::string s);
     static std::vector<std::string> split(const std::string& s, char delim);
-    // eventos sao separados por virgula
-    static std::vector<int>         parseListaEventos(const std::string& s);
+    static std::string              trim(const std::string& s);
+    static bool                     parseAcaoMutex(const std::string& s, AcaoTarefa& acao);
 };

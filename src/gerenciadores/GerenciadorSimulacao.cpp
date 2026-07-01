@@ -25,7 +25,7 @@ void GerenciadorSimulacao::resetar()
 
 // construtor / destrutor
 GerenciadorSimulacao::GerenciadorSimulacao(const ConfigSimulacao& config)
-    : pEscalonador(criarEscalonador(config.algoritmo)),
+    : pEscalonador(criarEscalonador(config.algoritmo, config.alpha)),
       quantum(config.quantum),
       listaTarefas(config.tarefas),
       tickAtual(0),
@@ -33,6 +33,8 @@ GerenciadorSimulacao::GerenciadorSimulacao(const ConfigSimulacao& config)
 {
     for (int i = 0; i < config.qtde_cpus; ++i)
         cpus.push_back({i, "", true});
+
+    inicializarMutexes();
 
     // historico[0] representa o estado antes de qualquer tick ser executado.
     // a cada avanço, um novo snapshot é empilhado em historico[T].
@@ -102,6 +104,9 @@ void GerenciadorSimulacao::editarEstadoTarefa(const std::string& tarefaId, Estad
     }
 
     t->setEstadoAtual(novoEstado);
+    t->setMotivoSuspensao(novoEstado == EstadoTarefa::Suspensa
+                          ? MotivoSuspensao::Manual
+                          : MotivoSuspensao::Nenhum);
 
     // invalida história futura
     historico.resize(tickAtual + 1);
@@ -116,57 +121,26 @@ void GerenciadorSimulacao::computarProximoTick()
     int T = tickAtual + 1;
     bool escalonadorPreemptivo = pEscalonador->isPreemptivo();
     bool deveReescalonar = false;
-    ResultadoEscalonamento res;
+    std::vector<std::string> sorteadasTick;
+    std::vector<EventoGantt> eventosTick;
 
-    // tarefas que finalizaram ao final do tick anterior
-    for (auto& t : listaTarefas) {
-        if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getTempoRestante() == 0) {
-            t.setEstadoAtual(EstadoTarefa::Terminada);
-            deveReescalonar = true;
-            for (auto& cpu : cpus)
-                if (cpu.tarefaAtualID == t.getID())
-                    cpu.tarefaAtualID = "";
-        }
-    }
+    auto temTarefaPronta = [&]() {
+        for (const auto& t : listaTarefas)
+            if (t.getEstadoAtual() == EstadoTarefa::Pronta)
+                return true;
+        return false;
+    };
 
-    // Em escalonadores preemptivos, quantum expirado abre um ponto de reescalonamento.
-    // Em cooperativos, a tarefa continua executando até terminar.
-    if (escalonadorPreemptivo) {
-        for (auto& t : listaTarefas) {
-            if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getQuantumRestante() == 0) {
-                t.setEstadoAtual(EstadoTarefa::Pronta);
-                deveReescalonar = true;
-                // não limpa cpu.tarefaAtualID para preservar a afinidade CPU↔tarefa
-                // o escalonador usa esse vínculo para evitar troca de CPU desnecessária
-            }
-        }
-    }
+    auto temCpuLivre = [&]() {
+        for (const auto& cpu : cpus)
+            if (cpu.tarefaAtualID.empty())
+                return true;
+        return false;
+    };
 
-    // ingresso=0 fica pronta no tick 1, ingresso=1 no tick 2, etc.
-    for (auto& t : listaTarefas)
-        if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() < T)
-            t.setEstadoAtual(EstadoTarefa::Pronta);
-
-    bool temTarefaPronta = false;
-    for (const auto& t : listaTarefas) {
-        if (t.getEstadoAtual() == EstadoTarefa::Pronta) {
-            temTarefaPronta = true;
-            break;
-        }
-    }
-
-    if (temTarefaPronta) {
-        for (const auto& cpu : cpus) {
-            if (cpu.tarefaAtualID.empty()) {
-                deveReescalonar = true;
-                break;
-            }
-        }
-    }
-
-    if (deveReescalonar) {
-        // chama o escalonador somente quando há um evento que permite nova decisão
-        res = pEscalonador->escalonar(listaTarefas, cpus, T);
+    auto aplicarEscalonamento = [&]() {
+        ResultadoEscalonamento res = pEscalonador->escalonar(listaTarefas, cpus, T);
+        sorteadasTick.insert(sorteadasTick.end(), res.sorteadas.begin(), res.sorteadas.end());
 
         // aplica as decisões do escalonador: preempções e novas atribuições
         for (auto& [cpuId, tarefaId] : res.alocacao) {
@@ -185,8 +159,10 @@ void GerenciadorSimulacao::computarProximoTick()
             // tarefa mudou: preempta a tarefa anterior se havia uma rodando
             if (!cpu->tarefaAtualID.empty()) {
                 Tarefa* anterior = findTarefa(cpu->tarefaAtualID);
-                if (anterior && anterior->getEstadoAtual() == EstadoTarefa::Execucao)
+                if (anterior && anterior->getEstadoAtual() == EstadoTarefa::Execucao) {
                     anterior->setEstadoAtual(EstadoTarefa::Pronta);
+                    anterior->setMotivoSuspensao(MotivoSuspensao::Nenhum);
+                }
             }
 
             cpu->tarefaAtualID = tarefaId;
@@ -196,10 +172,70 @@ void GerenciadorSimulacao::computarProximoTick()
                 cpu->ligada = false;
             } else if (escolhida) {
                 escolhida->setEstadoAtual(EstadoTarefa::Execucao);
+                escolhida->setMotivoSuspensao(MotivoSuspensao::Nenhum);
                 escolhida->setQuantumRestante(quantum);  // reinicia o quantum a cada nova atribuição
                 cpu->ligada = true;
             }
         }
+    };
+
+    // Ações no instante atual da tarefa acontecem antes de término, quantum ou nova escolha.
+    // Isso cobre casos como MUxx no instante final da execução da tarefa.
+    if (processarAcoesMutex(eventosTick))
+        deveReescalonar = true;
+
+    // tarefas que finalizaram ao final do tick anterior
+    for (auto& t : listaTarefas) {
+        if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getTempoRestante() == 0) {
+            t.setEstadoAtual(EstadoTarefa::Terminada);
+            t.setMotivoSuspensao(MotivoSuspensao::Nenhum);
+            deveReescalonar = true;
+            for (auto& cpu : cpus)
+                if (cpu.tarefaAtualID == t.getID())
+                    cpu.tarefaAtualID = "";
+        }
+    }
+
+    // Em escalonadores preemptivos, quantum expirado abre um ponto de reescalonamento.
+    // Em cooperativos, a tarefa continua executando até terminar.
+    if (escalonadorPreemptivo) {
+        for (auto& t : listaTarefas) {
+            if (t.getEstadoAtual() == EstadoTarefa::Execucao && t.getQuantumRestante() == 0) {
+                t.setEstadoAtual(EstadoTarefa::Pronta);
+                t.setMotivoSuspensao(MotivoSuspensao::Nenhum);
+                deveReescalonar = true;
+                // não limpa cpu.tarefaAtualID para preservar a afinidade CPU↔tarefa
+                // o escalonador usa esse vínculo para evitar troca de CPU desnecessária
+            }
+        }
+    }
+
+    // ingresso=0 fica pronta no tick 1, ingresso=1 no tick 2, etc.
+    for (auto& t : listaTarefas)
+        if (t.getEstadoAtual() == EstadoTarefa::Nova && t.getIngresso() < T) {
+            t.setEstadoAtual(EstadoTarefa::Pronta);
+            t.setMotivoSuspensao(MotivoSuspensao::Nenhum);
+        }
+
+    if (temTarefaPronta() && temCpuLivre())
+        deveReescalonar = true;
+
+    int guarda = 0;
+    while (guarda++ < (int)listaTarefas.size() + (int)cpus.size() + 10) {
+        if (deveReescalonar) {
+            // chama o escalonador somente quando há um evento que permite nova decisão
+            aplicarEscalonamento();
+            deveReescalonar = false;
+        }
+
+        bool acoesPedemReescalonamento = processarAcoesMutex(eventosTick);
+        if (!acoesPedemReescalonamento)
+            break;
+
+        if (temTarefaPronta() && (escalonadorPreemptivo || temCpuLivre()))
+            deveReescalonar = true;
+        else
+            break;
     }
 
     // executa as tarefas deste tick: decrementa tempo restante e quantum restante
@@ -217,7 +253,7 @@ void GerenciadorSimulacao::computarProximoTick()
     // avança o relógio, verifica término e salva snapshot para undo/redo
     tickAtual = T;
     if (todasTerminadas()) simulacaoCompleta = true;
-    historico.push_back(buildSnapshot(res.sorteadas));
+    historico.push_back(buildSnapshot(sorteadasTick, eventosTick));
 }
 
 // restaura o estado do sistema a partir de um snapshot
@@ -230,6 +266,18 @@ void GerenciadorSimulacao::aplicarEstado(const EstadoSistema& estado)
         t->setTempoRestante(snap.tempoRestante);
         t->setQuantumRestante(snap.quantumRestante);
         t->setPrioridadeDinamica(snap.prioridadeDinamica);
+        t->setProximaAcaoIndex(snap.proximaAcaoIndex);
+        t->setMotivoSuspensao(snap.motivoSuspensao);
+    }
+
+    mutexes.clear();
+    for (const auto& snap : estado.mutexes) {
+        Mutex mutex;
+        mutex.id = snap.id;
+        mutex.donoTarefaID = snap.donoTarefaID;
+        for (const auto& tarefaId : snap.filaEspera)
+            mutex.filaEspera.push_back(tarefaId);
+        mutexes.push_back(mutex);
     }
 
     for (auto& cpu : cpus) {
@@ -244,23 +292,118 @@ void GerenciadorSimulacao::aplicarEstado(const EstadoSistema& estado)
 }
 
 // constrói snapshot completo do estado atual do sistema.
-EstadoSistema GerenciadorSimulacao::buildSnapshot(const std::vector<std::string>& sorteadas) const
+EstadoSistema GerenciadorSimulacao::buildSnapshot(const std::vector<std::string>& sorteadas,
+                                                  const std::vector<EventoGantt>& eventos) const
 {
     EstadoSistema snap;
     snap.tempoClock = tickAtual;
     snap.sorteadas  = sorteadas;
+    snap.eventos    = eventos;
 
     for (const auto& t : listaTarefas)
         snap.tarefas.push_back({t.getID(), t.getEstadoAtual(),
+                                 t.getMotivoSuspensao(),
                                  t.getTempoRestante(), t.getQuantumRestante(),
-                                 t.getPrioridadeDinamica()});
+                                 t.getPrioridadeDinamica(),
+                                 t.getProximaAcaoIndex()});
 
     for (const auto& cpu : cpus) {
         snap.alocacaoCPU[cpu.id] = cpu.tarefaAtualID;
         snap.cpuLigada[cpu.id]   = cpu.ligada;
     }
 
+    for (const auto& mutex : mutexes) {
+        SnapshotMutex snapMutex;
+        snapMutex.id = mutex.id;
+        snapMutex.donoTarefaID = mutex.donoTarefaID;
+        for (const auto& tarefaId : mutex.filaEspera)
+            snapMutex.filaEspera.push_back(tarefaId);
+        snap.mutexes.push_back(snapMutex);
+    }
+
     return snap;
+}
+
+void GerenciadorSimulacao::inicializarMutexes()
+{
+    for (const auto& tarefa : listaTarefas)
+        for (const auto& acao : tarefa.getAcoes())
+            getOrCreateMutex(acao.mutexId);
+}
+
+bool GerenciadorSimulacao::processarAcoesMutex(std::vector<EventoGantt>& eventos)
+{
+    bool precisaReescalonar = false;
+
+    for (auto& cpu : cpus) {
+        if (cpu.tarefaAtualID.empty())
+            continue;
+
+        Tarefa* tarefa = findTarefa(cpu.tarefaAtualID);
+        if (!tarefa || tarefa->getEstadoAtual() != EstadoTarefa::Execucao)
+            continue;
+
+        bool bloqueou = false;
+        while (!bloqueou) {
+            std::size_t index = tarefa->getProximaAcaoIndex();
+            const auto& acoes = tarefa->getAcoes();
+            if (index >= acoes.size())
+                break;
+
+            const AcaoTarefa& acao = acoes[index];
+            if (acao.tempoRelativo > tarefa->getTempoExecutado())
+                break;
+
+            Mutex& mutex = getOrCreateMutex(acao.mutexId);
+
+            if (acao.tipo == TipoAcaoTarefa::SolicitarMutex) {
+                eventos.push_back({tarefa->getID(), TipoEventoGantt::SolicitarMutex, acao.mutexId});
+                tarefa->avancarAcao();
+
+                if (mutex.donoTarefaID.empty() || mutex.donoTarefaID == tarefa->getID()) {
+                    mutex.donoTarefaID = tarefa->getID();
+                    continue;
+                }
+
+                auto jaEsperando = std::find(mutex.filaEspera.begin(), mutex.filaEspera.end(),
+                                             tarefa->getID());
+                if (jaEsperando == mutex.filaEspera.end())
+                    mutex.filaEspera.push_back(tarefa->getID());
+
+                tarefa->setEstadoAtual(EstadoTarefa::Suspensa);
+                tarefa->setMotivoSuspensao(MotivoSuspensao::Mutex);
+                cpu.tarefaAtualID = "";
+                cpu.ligada = false;
+                precisaReescalonar = true;
+                bloqueou = true;
+            } else {
+                eventos.push_back({tarefa->getID(), TipoEventoGantt::LiberarMutex, acao.mutexId});
+                tarefa->avancarAcao();
+
+                if (mutex.donoTarefaID != tarefa->getID())
+                    continue;
+
+                if (mutex.filaEspera.empty()) {
+                    mutex.donoTarefaID.clear();
+                    continue;
+                }
+
+                std::string proximaTarefaId = mutex.filaEspera.front();
+                mutex.filaEspera.pop_front();
+                mutex.donoTarefaID = proximaTarefaId;
+
+                Tarefa* proxima = findTarefa(proximaTarefaId);
+                if (proxima && proxima->getEstadoAtual() == EstadoTarefa::Suspensa &&
+                    proxima->getMotivoSuspensao() == MotivoSuspensao::Mutex) {
+                    proxima->setEstadoAtual(EstadoTarefa::Pronta);
+                    proxima->setMotivoSuspensao(MotivoSuspensao::Nenhum);
+                    precisaReescalonar = true;
+                }
+            }
+        }
+    }
+
+    return precisaReescalonar;
 }
 
 bool GerenciadorSimulacao::todasTerminadas() const
@@ -309,10 +452,26 @@ CPU* GerenciadorSimulacao::findCPU(int id)
     return nullptr;
 }
 
-Escalonador* GerenciadorSimulacao::criarEscalonador(const std::string& tipo)
+Mutex* GerenciadorSimulacao::findMutex(int id)
+{
+    for (auto& mutex : mutexes)
+        if (mutex.id == id) return &mutex;
+    return nullptr;
+}
+
+Mutex& GerenciadorSimulacao::getOrCreateMutex(int id)
+{
+    if (Mutex* mutex = findMutex(id))
+        return *mutex;
+
+    mutexes.push_back({id, "", {}});
+    return mutexes.back();
+}
+
+Escalonador* GerenciadorSimulacao::criarEscalonador(const std::string& tipo, int alpha)
 {
     if (tipo == "srtf")   return new SRTFEscalonador();
-    if (tipo == "priopd") return new PriopDEscalonador();
+    if (tipo == "priopd" || tipo == "priopenv") return new PriopDEscalonador(alpha);
     return new PriopEscalonador();
 }
 

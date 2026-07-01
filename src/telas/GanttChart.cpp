@@ -16,13 +16,27 @@ static ImVec4 hexParaImVec4Gantt(const std::string& hex)
     } catch (...) { return ImVec4(1.f, 1.f, 1.f, 1.f); }
 }
 
+static const SnapshotTarefa* snapshotDaTarefa(const EstadoSistema& snap, const std::string& id)
+{
+    for (const auto& ts : snap.tarefas)
+        if (ts.id == id) return &ts;
+    return nullptr;
+}
+
 // retorna  estado de tarefa a partir do snapshot
 static EstadoTarefa estadoDaTarefa(const EstadoSistema& snap, const std::string& id)
 {
-    for (const auto& ts : snap.tarefas)
-        if (ts.id == id) return ts.estado;
+    if (const SnapshotTarefa* ts = snapshotDaTarefa(snap, id))
+        return ts->estado;
     // nova, se não encontrada
     return EstadoTarefa::Nova;
+}
+
+static MotivoSuspensao motivoDaTarefa(const EstadoSistema& snap, const std::string& id)
+{
+    if (const SnapshotTarefa* ts = snapshotDaTarefa(snap, id))
+        return ts->motivoSuspensao;
+    return MotivoSuspensao::Nenhum;
 }
 
 // triângulo verde apontando para baixo — marca chegada da tarefa
@@ -63,6 +77,28 @@ static void iconSorteio(ImDrawList* dl, float cx, float cy)
         ImVec2(cx,     cy - r), ImVec2(cx + r, cy),
         ImVec2(cx,     cy + r), ImVec2(cx - r, cy),
         IM_COL32(200, 155, 0, 255));
+}
+
+static void iconMutexAcao(ImDrawList* dl, float cx, float cy, TipoEventoGantt tipo)
+{
+    ImU32 fill = (tipo == TipoEventoGantt::SolicitarMutex)
+        ? IM_COL32(70, 190, 255, 235)
+        : IM_COL32(255, 120, 80, 235);
+    const char* label = (tipo == TipoEventoGantt::SolicitarMutex) ? "L" : "U";
+
+    dl->AddCircleFilled(ImVec2(cx, cy), 5.f, fill);
+    dl->AddCircle(ImVec2(cx, cy), 5.f, IM_COL32(20, 20, 20, 220));
+    dl->AddText(ImVec2(cx - 3.f, cy - 6.f), IM_COL32(0, 0, 0, 230), label);
+}
+
+static void preencherSuspensaMutex(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
+{
+    dl->AddRectFilled(p0, p1, IM_COL32(20, 20, 20, 235), 3.f);
+    for (float x = p0.x - (p1.y - p0.y); x < p1.x; x += 6.f) {
+        dl->AddLine(ImVec2(x, p1.y), ImVec2(x + (p1.y - p0.y), p0.y),
+                    IM_COL32(120, 120, 120, 180), 1.f);
+    }
+    dl->AddRect(p0, p1, IM_COL32(150, 150, 150, 180), 3.f);
 }
 
 // desenha linha de legenda imediatamente abaixo do child do Gantt.
@@ -129,15 +165,36 @@ static void desenharLegenda()
         ImGui::SameLine(0.f, GT);
     };
 
+    auto mutexAcao = [&](TipoEventoGantt tipo, const char* label) {
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        iconMutexAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f, tipo);
+        ImGui::Dummy(ImVec2(S, S));
+        ImGui::SameLine(0.f, GI);
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(0.f, GT);
+    };
+
+    auto suspensaMutex = [&](const char* label) {
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        preencherSuspensaMutex(dl, p, ImVec2(p.x + S, p.y + S));
+        ImGui::Dummy(ImVec2(S, S));
+        ImGui::SameLine(0.f, GI);
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(0.f, GT);
+    };
+
     ImGui::Spacing();
     ImGui::SameLine(0.f, 8.f);
 
     retang(IM_COL32(255,165, 50,200), 0,                          "Executando (cor da tarefa)");
     retang(0,                          IM_COL32(110,110,110,200), "Pronta");
     retang(IM_COL32(  0,  0,  0,230), IM_COL32( 80, 80, 80,200), "Suspensa");
+    suspensaMutex("Suspensa por mutex");
     chegada("Chegada");
     termino("Termino");
     sorteio("Sorteio");
+    mutexAcao(TipoEventoGantt::SolicitarMutex, "Solicita mutex");
+    mutexAcao(TipoEventoGantt::LiberarMutex, "Libera mutex");
     retang(IM_COL32( 90, 20, 20,210), 0,                          "CPU desligada");
 
     ImGui::NewLine();
@@ -255,7 +312,10 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
                     dl->AddRect(p0, p1, IM_COL32(110, 110, 110, 120), 3.f);
                     break;
                 case EstadoTarefa::Suspensa:
-                    dl->AddRectFilled(p0, p1, IM_COL32(0, 0, 0, 230), 3.f);
+                    if (motivoDaTarefa(snap, id) == MotivoSuspensao::Mutex)
+                        preencherSuspensaMutex(dl, p0, p1);
+                    else
+                        dl->AddRectFilled(p0, p1, IM_COL32(0, 0, 0, 230), 3.f);
                     break;
                 default: break;
             }
@@ -265,6 +325,15 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
                 if (sid == id) {
                     iconSorteio(dl, cellX + CELL_W - 5.f, rowY + 5.f);
                     break;
+                }
+            }
+
+            int eventoIdx = 0;
+            for (const auto& evento : snap.eventos) {
+                if (evento.tarefaId == id) {
+                    iconMutexAcao(dl, cellX + 6.f + eventoIdx * 9.f, rowY + CELL_H - 8.f,
+                                  evento.tipo);
+                    eventoIdx++;
                 }
             }
         }

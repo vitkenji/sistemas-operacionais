@@ -167,7 +167,11 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
                            ImVec2(20, 20));
 
         ImGui::TableSetColumnIndex(2);
-        ImGui::TextColored(corEstado(t.getEstadoAtual()), "%s", nomeEstado(t.getEstadoAtual()));
+        if (t.getEstadoAtual() == EstadoTarefa::Suspensa &&
+            t.getMotivoSuspensao() == MotivoSuspensao::Mutex)
+            ImGui::TextColored(corEstado(t.getEstadoAtual()), "Susp. Mutex");
+        else
+            ImGui::TextColored(corEstado(t.getEstadoAtual()), "%s", nomeEstado(t.getEstadoAtual()));
 
         ImGui::TableSetColumnIndex(3);
         ImGui::Text("%d", t.getTempoRestante());
