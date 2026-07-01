@@ -1,10 +1,10 @@
 #pragma once
-#include "gerenciadores/GerenciadorTarefa.hpp"
+#include "gerenciadores/GerenciadorSimulacao.hpp"
 
 // desenha o Gráfico de Gantt.
 class GanttChart {
 public:
-    void desenhar(GerenciadorTarefa* g);
+    void desenhar(GerenciadorSimulacao* g);
 
     // bounding box (coordenadas de tela, pixels lógicos) do último desenhar()
     float getUltimaMinX() const { return ultimaMinX; }

@@ -1,5 +1,5 @@
 #include "gerenciadores/gerenciadorGrafico.hpp"
-#include "gerenciadores/GerenciadorTarefa.hpp"
+#include "gerenciadores/GerenciadorSimulacao.hpp"
 #include "telas/TelaInicial.hpp"
 #include "telas/TelaSimulacao.hpp"
 
@@ -22,7 +22,7 @@ int main()
             telaInicial.desenhar();
         } 
         else {
-            GerenciadorTarefa* g = GerenciadorTarefa::getInstance();
+            GerenciadorSimulacao* g = GerenciadorSimulacao::getInstance();
             bool voltar = telaSimulacao.desenhar(g);
 
             PedidoExportacao pedido = telaSimulacao.consumirPedidoExportacao();
@@ -38,6 +38,6 @@ int main()
         gerenciadorGrafico.renderizar();
     }
 
-    GerenciadorTarefa::resetar();
+    GerenciadorSimulacao::resetar();
     return 0;
 }

@@ -39,7 +39,7 @@ static ImVec4 hexParaImVec4(const std::string& hex)
 }
 
 // ponto de entrada 
-bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
+bool TelaSimulacao::desenhar(GerenciadorSimulacao* g)
 {
     bool voltar = false;
 
@@ -75,7 +75,7 @@ bool TelaSimulacao::desenhar(GerenciadorTarefa* g)
 }
 
 // painel de CPUs
-void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
+void TelaSimulacao::desenharPainelCPUs(GerenciadorSimulacao* g)
 {
     ImGui::Text("CPUs  (quantum = %d)", g->getQuantum());
     ImGui::Spacing();
@@ -123,7 +123,7 @@ void TelaSimulacao::desenharPainelCPUs(GerenciadorTarefa* g)
 }
 
 // tabela de tarefas 
-void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
+void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
 {
     ImGui::Text("Tarefas");
     ImGui::Spacing();
@@ -218,13 +218,13 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorTarefa* g)
 }
 
 // gantt
-void TelaSimulacao::desenharGantt(GerenciadorTarefa* g)
+void TelaSimulacao::desenharGantt(GerenciadorSimulacao* g)
 {
     ImGui::Spacing();
     gantt.desenhar(g);
 }
 
-void TelaSimulacao::desenharControles(GerenciadorTarefa* g, bool& voltar)
+void TelaSimulacao::desenharControles(GerenciadorSimulacao* g, bool& voltar)
 {
     // navegação
     if (ImGui::Button("< Voltar", ImVec2(90, 0)))

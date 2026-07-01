@@ -35,7 +35,7 @@ set(IMGUI_SOURCES
 set(PROJECT_SOURCES
     src/tarefa/tarefa.cpp
     src/config/CarregadorConfig.cpp
-    src/gerenciadores/GerenciadorTarefa.cpp
+    src/gerenciadores/GerenciadorSimulacao.cpp
     src/gerenciadores/gerenciadorGrafico.cpp
     src/escalonadores/PriopEscalonador.cpp
     src/escalonadores/SRTFescalonador.cpp

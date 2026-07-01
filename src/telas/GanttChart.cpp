@@ -145,7 +145,7 @@ static void desenharLegenda()
 
 // ponto de entrada
 
-void GanttChart::desenhar(GerenciadorTarefa* g)
+void GanttChart::desenhar(GerenciadorSimulacao* g)
 {
     if (!g) return;
 

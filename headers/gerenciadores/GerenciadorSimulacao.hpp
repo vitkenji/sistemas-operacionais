@@ -4,11 +4,13 @@
 #include "simulacao/CPU.hpp"
 #include "simulacao/EstadoSistema.hpp"
 #include <map>
+#include <string>
 #include <vector>
 
-class GerenciadorTarefa {
+// Controla o estado, o avanço e o histórico da simulação de escalonamento.
+class GerenciadorSimulacao {
 private:
-    static GerenciadorTarefa* instance;
+    static GerenciadorSimulacao* instance;
 
     std::vector<Tarefa>        listaTarefas;
     std::vector<CPU>           cpus;
@@ -20,7 +22,7 @@ private:
     int                        tickAtual;         // indice no historico
     bool                       simulacaoCompleta;
 
-    explicit GerenciadorTarefa(const ConfigSimulacao& config);
+    explicit GerenciadorSimulacao(const ConfigSimulacao& config);
     Escalonador* criarEscalonador(const std::string& tipo);
 
     void          computarProximoTick();
@@ -34,11 +36,11 @@ private:
     CPU*    findCPU(int id);
 
 public:
-    ~GerenciadorTarefa();
+    ~GerenciadorSimulacao();
 
     static void               configurar(const ConfigSimulacao& config);
     static void               resetar();
-    static GerenciadorTarefa* getInstance();
+    static GerenciadorSimulacao* getInstance();
 
     // controle da simulação
     void avancar();

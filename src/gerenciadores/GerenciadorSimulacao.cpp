@@ -1,29 +1,29 @@
-#include "gerenciadores/GerenciadorTarefa.hpp"
+#include "gerenciadores/GerenciadorSimulacao.hpp"
 #include "escalonadores/PriopEscalonador.hpp"
 #include "escalonadores/SRTFEscalonador.hpp"
 #include <algorithm>
 #include <numeric>
 
-GerenciadorTarefa* GerenciadorTarefa::instance = nullptr;
+GerenciadorSimulacao* GerenciadorSimulacao::instance = nullptr;
 
-GerenciadorTarefa* GerenciadorTarefa::getInstance() { return instance; }
+GerenciadorSimulacao* GerenciadorSimulacao::getInstance() { return instance; }
 
 // cria a instância única a partir de uma configuração carregada do arquivo.
 // chamar configurar() duas vezes reinicia a simulação do zero.
-void GerenciadorTarefa::configurar(const ConfigSimulacao& config)
+void GerenciadorSimulacao::configurar(const ConfigSimulacao& config)
 {
     resetar();
-    instance = new GerenciadorTarefa(config);
+    instance = new GerenciadorSimulacao(config);
 }
 
-void GerenciadorTarefa::resetar()
+void GerenciadorSimulacao::resetar()
 {
     delete instance;
     instance = nullptr;
 }
 
 // construtor / destrutor
-GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
+GerenciadorSimulacao::GerenciadorSimulacao(const ConfigSimulacao& config)
     : pEscalonador(criarEscalonador(config.algoritmo)),
       quantum(config.quantum),
       listaTarefas(config.tarefas),
@@ -38,25 +38,25 @@ GerenciadorTarefa::GerenciadorTarefa(const ConfigSimulacao& config)
     historico.push_back(buildSnapshot());
 }
 
-GerenciadorTarefa::~GerenciadorTarefa() { delete pEscalonador; }
+GerenciadorSimulacao::~GerenciadorSimulacao() { delete pEscalonador; }
 
 // navegacao
 // podeAvancar() retorna true se há um tick futuro já calculado (redo) OU
 // se a simulação ainda não acabou (próximo tick será calculado sob demanda).
-bool GerenciadorTarefa::podeAvancar() const
+bool GerenciadorSimulacao::podeAvancar() const
 {
     return tickAtual < (int)historico.size() - 1 || !simulacaoCompleta;
 }
 
-bool GerenciadorTarefa::podeRetroceder() const { return tickAtual > 0; }
+bool GerenciadorSimulacao::podeRetroceder() const { return tickAtual > 0; }
 
-bool GerenciadorTarefa::isSimulacaoCompleta() const
+bool GerenciadorSimulacao::isSimulacaoCompleta() const
 {
     return simulacaoCompleta && tickAtual == (int)historico.size() - 1;
 }
 
 // avança um tick
-void GerenciadorTarefa::avancar()
+void GerenciadorSimulacao::avancar()
 {
     if (tickAtual < (int)historico.size() - 1) {
         tickAtual++;
@@ -69,7 +69,7 @@ void GerenciadorTarefa::avancar()
 
 // retrocede um tick restaurando o snapshot salvo em historico[tickAtual-1].
 // snapshots futuros permanecem no vetor, permitindo redo
-void GerenciadorTarefa::retroceder()
+void GerenciadorSimulacao::retroceder()
 {
     if (tickAtual <= 0) return;
     tickAtual--;
@@ -77,7 +77,7 @@ void GerenciadorTarefa::retroceder()
 }
 
 // executa todos os ticks restantes de uma vez
-void GerenciadorTarefa::executarCompleto()
+void GerenciadorSimulacao::executarCompleto()
 {
     int limite = tickLimite();
     while (!simulacaoCompleta && tickAtual < limite)
@@ -86,7 +86,7 @@ void GerenciadorTarefa::executarCompleto()
 
 // edicao manual
 // snapshots futuros são descartados
-void GerenciadorTarefa::editarEstadoTarefa(const std::string& tarefaId, EstadoTarefa novoEstado)
+void GerenciadorSimulacao::editarEstadoTarefa(const std::string& tarefaId, EstadoTarefa novoEstado)
 {
     Tarefa* t = findTarefa(tarefaId);
     if (!t) return;
@@ -110,7 +110,7 @@ void GerenciadorTarefa::editarEstadoTarefa(const std::string& tarefaId, EstadoTa
 // calcula o que acontece no próximo tick
 // finalizações e preempções acontecem antes do
 // escalonador decidir quem entra, e os decrementos ocorrem só no final
-void GerenciadorTarefa::computarProximoTick()
+void GerenciadorSimulacao::computarProximoTick()
 {
     int T = tickAtual + 1;
 
@@ -194,7 +194,7 @@ void GerenciadorTarefa::computarProximoTick()
 }
 
 // restaura o estado do sistema a partir de um snapshot
-void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
+void GerenciadorSimulacao::aplicarEstado(const EstadoSistema& estado)
 {
     for (const auto& snap : estado.tarefas) {
         Tarefa* t = findTarefa(snap.id);
@@ -216,7 +216,7 @@ void GerenciadorTarefa::aplicarEstado(const EstadoSistema& estado)
 }
 
 // constrói snapshot completo do estado atual do sistema.
-EstadoSistema GerenciadorTarefa::buildSnapshot(const std::vector<std::string>& sorteadas) const
+EstadoSistema GerenciadorSimulacao::buildSnapshot(const std::vector<std::string>& sorteadas) const
 {
     EstadoSistema snap;
     snap.tempoClock = tickAtual;
@@ -234,7 +234,7 @@ EstadoSistema GerenciadorTarefa::buildSnapshot(const std::vector<std::string>& s
     return snap;
 }
 
-bool GerenciadorTarefa::todasTerminadas() const
+bool GerenciadorSimulacao::todasTerminadas() const
 {
     for (const auto& t : listaTarefas)
         if (t.getEstadoAtual() != EstadoTarefa::Terminada)
@@ -243,7 +243,7 @@ bool GerenciadorTarefa::todasTerminadas() const
 }
 
 // true se ainda há trabalho a fazer, usado para decidir se as CPUs devem ficar ligadas.
-bool GerenciadorTarefa::hasTarefaProntaOuExecutando() const
+bool GerenciadorSimulacao::hasTarefaProntaOuExecutando() const
 {
     for (const auto& t : listaTarefas) {
         auto s = t.getEstadoAtual();
@@ -255,7 +255,7 @@ bool GerenciadorTarefa::hasTarefaProntaOuExecutando() const
 
 // limite superior de segurança para executarCompleto(): soma de todas as durações
 // mais o maior ingresso, com margem extra para evitar loop infinito
-int GerenciadorTarefa::tickLimite() const
+int GerenciadorSimulacao::tickLimite() const
 {
     int soma = 0;
     for (const auto& t : listaTarefas)
@@ -266,29 +266,29 @@ int GerenciadorTarefa::tickLimite() const
     return maxIngresso + soma + 10;
 }
 
-Tarefa* GerenciadorTarefa::findTarefa(const std::string& id)
+Tarefa* GerenciadorSimulacao::findTarefa(const std::string& id)
 {
     for (auto& t : listaTarefas)
         if (t.getID() == id) return &t;
     return nullptr;
 }
 
-CPU* GerenciadorTarefa::findCPU(int id)
+CPU* GerenciadorSimulacao::findCPU(int id)
 {
     for (auto& cpu : cpus)
         if (cpu.id == id) return &cpu;
     return nullptr;
 }
 
-Escalonador* GerenciadorTarefa::criarEscalonador(const std::string& tipo)
+Escalonador* GerenciadorSimulacao::criarEscalonador(const std::string& tipo)
 {
     if (tipo == "srtf")   return new SRTFEscalonador();
     return new PriopEscalonador();
 }
 
-int                               GerenciadorTarefa::getTickAtual()  const { return tickAtual; }
-int                               GerenciadorTarefa::getQuantum()    const { return quantum; }
-int                               GerenciadorTarefa::getQtdeCpus()   const { return (int)cpus.size(); }
-const std::vector<CPU>&           GerenciadorTarefa::getCPUs()       const { return cpus; }
-const std::vector<Tarefa>&        GerenciadorTarefa::getTarefas()    const { return listaTarefas; }
-const std::vector<EstadoSistema>& GerenciadorTarefa::getHistorico()  const { return historico; }
+int                               GerenciadorSimulacao::getTickAtual()  const { return tickAtual; }
+int                               GerenciadorSimulacao::getQuantum()    const { return quantum; }
+int                               GerenciadorSimulacao::getQtdeCpus()   const { return (int)cpus.size(); }
+const std::vector<CPU>&           GerenciadorSimulacao::getCPUs()       const { return cpus; }
+const std::vector<Tarefa>&        GerenciadorSimulacao::getTarefas()    const { return listaTarefas; }
+const std::vector<EstadoSistema>& GerenciadorSimulacao::getHistorico()  const { return historico; }

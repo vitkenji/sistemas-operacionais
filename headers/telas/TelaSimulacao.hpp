@@ -1,5 +1,5 @@
 #pragma once
-#include "gerenciadores/GerenciadorTarefa.hpp"
+#include "gerenciadores/GerenciadorSimulacao.hpp"
 #include "telas/GanttChart.hpp"
 #include <string>
 
@@ -12,7 +12,7 @@ struct PedidoExportacao {
 class TelaSimulacao {
 public:
     // true quando user clica em "Voltar para configuração"
-    bool desenhar(GerenciadorTarefa* g);
+    bool desenhar(GerenciadorSimulacao* g);
 
     // retorna pedido de exportação e limpa o estado interno.
     // caminho vazio = nenhum pedido pendente.
@@ -25,8 +25,8 @@ private:
     std::string ultimaExportacao;
     float       ganttMinX = 0, ganttMinY = 0, ganttMaxX = 0, ganttMaxY = 0;
 
-    void desenharPainelCPUs(GerenciadorTarefa* g);
-    void desenharTabelaTarefas(GerenciadorTarefa* g);
-    void desenharGantt(GerenciadorTarefa* g);
-    void desenharControles(GerenciadorTarefa* g, bool& voltar);
+    void desenharPainelCPUs(GerenciadorSimulacao* g);
+    void desenharTabelaTarefas(GerenciadorSimulacao* g);
+    void desenharGantt(GerenciadorSimulacao* g);
+    void desenharControles(GerenciadorSimulacao* g, bool& voltar);
 };

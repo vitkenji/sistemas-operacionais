@@ -1,5 +1,5 @@
 #include "telas/TelaInicial.hpp"
-#include "gerenciadores/GerenciadorTarefa.hpp"
+#include "gerenciadores/GerenciadorSimulacao.hpp"
 #include "imgui.h"
 #include <cstring>
 #include <string>
@@ -29,7 +29,7 @@ void TelaInicial::resetar()
     ultimaConfig      = ConfigSimulacao{};
     tentouCarregar    = false;
     simulacaoIniciada = false;
-    GerenciadorTarefa::resetar();
+    GerenciadorSimulacao::resetar();
 }
 
 void TelaInicial::processarImportacao()
@@ -189,7 +189,7 @@ void TelaInicial::desenharResultado()
     ImGui::SameLine();
 
     if (ImGui::Button("Iniciar Simulacao >>", ImVec2(180, 0))) {
-        GerenciadorTarefa::configurar(ultimaConfig);
+        GerenciadorSimulacao::configurar(ultimaConfig);
         simulacaoIniciada = true;
     }
 }
