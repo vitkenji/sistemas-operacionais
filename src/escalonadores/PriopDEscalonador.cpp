@@ -1,21 +1,23 @@
-#include "escalonadores/SRTFEscalonador.hpp"
+#include "escalonadores/PriopDEscalonador.hpp"
 #include <algorithm>
 #include <map>
 #include <random>
 #include <set>
 
-// gerador de numeros aleatorios
+static constexpr int ALPHA_ENVELHECIMENTO = 1;
+
+// gerador de numeros aleatórios
 static std::mt19937& rng() {
     static std::mt19937 inst(std::random_device{}());
     return inst;
 }
 
-// true se a é preferível a b no SRTF.
-// desempate: menor tempo restante -> já em execução -> menor ingresso -> menor duração
-static bool melhorSRTF(const Tarefa* a, const Tarefa* b)
+// true se a é preferível a b nos critérios de PRIOpD.
+// desempate: prioridade dinâmica maior -> em execução -> menor ingresso -> menor duração.
+static bool melhorPriopD(const Tarefa* a, const Tarefa* b)
 {
-    if (a->getTempoRestante() != b->getTempoRestante())
-        return a->getTempoRestante() < b->getTempoRestante();
+    if (a->getPrioridadeDinamica() != b->getPrioridadeDinamica())
+        return a->getPrioridadeDinamica() > b->getPrioridadeDinamica();
 
     bool aEx = a->getEstadoAtual() == EstadoTarefa::Execucao;
     bool bEx = b->getEstadoAtual() == EstadoTarefa::Execucao;
@@ -27,19 +29,18 @@ static bool melhorSRTF(const Tarefa* a, const Tarefa* b)
     return a->getDuracao() < b->getDuracao();
 }
 
-// true se a e b empatam em todos os criterios.
-// assim, o desempate é feito por sorteio.
-static bool empateSRTF(const Tarefa* a, const Tarefa* b)
+// true se a e b empatam em todos os critérios
+static bool empatePriopD(const Tarefa* a, const Tarefa* b)
 {
     bool aEx = a->getEstadoAtual() == EstadoTarefa::Execucao;
     bool bEx = b->getEstadoAtual() == EstadoTarefa::Execucao;
-    return a->getTempoRestante() == b->getTempoRestante()
+    return a->getPrioridadeDinamica() == b->getPrioridadeDinamica()
         && aEx == bEx
         && a->getIngresso() == b->getIngresso()
         && a->getDuracao()  == b->getDuracao();
 }
 
-ResultadoEscalonamento SRTFEscalonador::escalonar(
+ResultadoEscalonamento PriopDEscalonador::escalonar(
     std::vector<Tarefa>&       tarefas,
     const std::vector<CPU>&    cpus,
     int /*tempoAtual*/)
@@ -47,10 +48,9 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
     ResultadoEscalonamento res;
     int N = (int)cpus.size();
 
-    // candidatas sao tarefas em pronta ou em execucao
-    // novas, suspensas e terminadas são ignoradas
-    std::vector<const Tarefa*> candidatas;
-    for (const auto& t : tarefas)
+    // candidatas: tarefas pronta ou em execução
+    std::vector<Tarefa*> candidatas;
+    for (auto& t : tarefas)
         if (t.getEstadoAtual() == EstadoTarefa::Pronta ||
             t.getEstadoAtual() == EstadoTarefa::Execucao)
             candidatas.push_back(&t);
@@ -61,27 +61,27 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
         return res;
     }
 
-    // sorteia
+    // sorteia para desempate.
     std::uniform_int_distribution<int> dist(0, 1'000'000);
     std::map<std::string, int> aleatorio;
     for (const Tarefa* t : candidatas)
         aleatorio[t->getID()] = dist(rng());
 
-    // ordena as candidatas pelo SRTF
+    // ordena as candidatas pelo PRIOpD
     std::sort(candidatas.begin(), candidatas.end(),
         [&](const Tarefa* a, const Tarefa* b) {
-            if (!empateSRTF(a, b)) return melhorSRTF(a, b);
+            if (!empatePriopD(a, b)) return melhorPriopD(a, b);
             if (aleatorio[a->getID()] != aleatorio[b->getID()])
                 return aleatorio[a->getID()] < aleatorio[b->getID()];
             return a->getID() < b->getID();
         });
 
-    // seleciona as N candidatas (N = número de CPUs disponíveis)
+    // seleciona as N melhores candidatas (N = número de CPUs disponíveis)
     int qtde = std::min(N, (int)candidatas.size());
 
-    // detecta sorteio. ID é repassado ao Gráfico de Gantt para exibir o ícone de sorteio.
+    // Detecta sorteio. ID é repassado ao grafico para exibir icone de sorteio.
     if (qtde > 0 && qtde < (int)candidatas.size()) {
-        if (empateSRTF(candidatas[qtde - 1], candidatas[qtde]))
+        if (empatePriopD(candidatas[qtde - 1], candidatas[qtde]))
             res.sorteadas.push_back(candidatas[qtde - 1]->getID());
     }
 
@@ -95,7 +95,7 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
     std::set<std::string> tarefasAlocadas;
 
     // mantém no mesmo CPU as tarefas selecionadas que já estavam rodando.
-    // Isso evita troca de contexto quando não há motivo para trocar de CPU.
+    // evita context switch quando não há motivo para trocar de CPU.
     for (int i = 0; i < qtde; ++i) {
         std::string tid = candidatas[i]->getID();
         auto it = tarefaParaCPU.find(tid);
@@ -121,9 +121,17 @@ ResultadoEscalonamento SRTFEscalonador::escalonar(
         }
     }
 
-    // CPUs que sobraram ficam ociosas 
+    // CPUs que sobraram ficam ociosas
     while (idx < (int)cpusLivres.size())
         res.alocacao[cpusLivres[idx++]] = "";
+
+    for (auto& t : tarefas) {
+        if (tarefasAlocadas.count(t.getID())) {
+            t.resetarPrioridadeDinamica();
+        } else if (t.getEstadoAtual() == EstadoTarefa::Pronta) {
+            t.incrementarPrioridadeDinamica(ALPHA_ENVELHECIMENTO);
+        }
+    }
 
     return res;
 }

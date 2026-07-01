@@ -25,6 +25,7 @@ private:
     int          ingresso;   
     int          duracao; 
     int          prioridade;
+    int          prioridadeDinamica;
     std::vector<int> lista_eventos;
 
     EstadoTarefa estadoAtual;
@@ -46,6 +47,7 @@ public:
     int         getIngresso()   const;
     int         getDuracao()    const;
     int         getPrioridade() const;
+    int         getPrioridadeDinamica() const;
 
     EstadoTarefa getEstadoAtual()    const;
     int          getTempoRestante()   const;
@@ -54,6 +56,9 @@ public:
     void setEstadoAtual(EstadoTarefa estado);
     void setTempoRestante(int t);
     void setQuantumRestante(int q);
+    void setPrioridadeDinamica(int p);
+    void resetarPrioridadeDinamica();
+    void incrementarPrioridadeDinamica(int incremento);
     void decrementarTempoRestante();
     void decrementarQuantumRestante();
 

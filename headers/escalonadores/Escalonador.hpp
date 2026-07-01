@@ -29,7 +29,7 @@ public:
     // cpus:       estado atual das CPUs
     // tempoAtual: tick corrente
     virtual ResultadoEscalonamento escalonar(
-        const std::vector<Tarefa>& tarefas,
+        std::vector<Tarefa>&       tarefas,
         const std::vector<CPU>&    cpus,
         int tempoAtual) = 0;
 };

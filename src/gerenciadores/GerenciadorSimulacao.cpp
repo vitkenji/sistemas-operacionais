@@ -1,4 +1,5 @@
 #include "gerenciadores/GerenciadorSimulacao.hpp"
+#include "escalonadores/PriopDEscalonador.hpp"
 #include "escalonadores/PriopEscalonador.hpp"
 #include "escalonadores/SRTFEscalonador.hpp"
 #include <algorithm>
@@ -228,6 +229,7 @@ void GerenciadorSimulacao::aplicarEstado(const EstadoSistema& estado)
         t->setEstadoAtual(snap.estado);
         t->setTempoRestante(snap.tempoRestante);
         t->setQuantumRestante(snap.quantumRestante);
+        t->setPrioridadeDinamica(snap.prioridadeDinamica);
     }
 
     for (auto& cpu : cpus) {
@@ -250,7 +252,8 @@ EstadoSistema GerenciadorSimulacao::buildSnapshot(const std::vector<std::string>
 
     for (const auto& t : listaTarefas)
         snap.tarefas.push_back({t.getID(), t.getEstadoAtual(),
-                                 t.getTempoRestante(), t.getQuantumRestante()});
+                                 t.getTempoRestante(), t.getQuantumRestante(),
+                                 t.getPrioridadeDinamica()});
 
     for (const auto& cpu : cpus) {
         snap.alocacaoCPU[cpu.id] = cpu.tarefaAtualID;
@@ -309,6 +312,7 @@ CPU* GerenciadorSimulacao::findCPU(int id)
 Escalonador* GerenciadorSimulacao::criarEscalonador(const std::string& tipo)
 {
     if (tipo == "srtf")   return new SRTFEscalonador();
+    if (tipo == "priopd") return new PriopDEscalonador();
     return new PriopEscalonador();
 }
 

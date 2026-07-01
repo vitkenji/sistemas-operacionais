@@ -38,6 +38,7 @@ set(PROJECT_SOURCES
     src/gerenciadores/GerenciadorSimulacao.cpp
     src/gerenciadores/gerenciadorGrafico.cpp
     src/escalonadores/PriopEscalonador.cpp
+    src/escalonadores/PriopDEscalonador.cpp
     src/escalonadores/SRTFescalonador.cpp
     src/telas/TelaInicial.cpp
     src/telas/TelaSimulacao.cpp

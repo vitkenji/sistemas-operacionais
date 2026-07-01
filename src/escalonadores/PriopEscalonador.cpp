@@ -39,7 +39,7 @@ static bool empatePriop(const Tarefa* a, const Tarefa* b)
 }
 
 ResultadoEscalonamento PriopEscalonador::escalonar(
-    const std::vector<Tarefa>& tarefas,
+    std::vector<Tarefa>&       tarefas,
     const std::vector<CPU>&    cpus,
     int /*tempoAtual*/)
 {
@@ -55,7 +55,7 @@ ResultadoEscalonamento PriopEscalonador::escalonar(
 
     if (candidatas.empty()) {
         for (const auto& cpu : cpus)
-            res.alocacao[cpu.id] = -1;
+            res.alocacao[cpu.id] = "";
         return res;
     }
 

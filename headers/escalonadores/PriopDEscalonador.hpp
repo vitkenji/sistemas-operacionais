@@ -1,12 +1,12 @@
 #pragma once
 #include "escalonadores/Escalonador.hpp"
 
-class SRTFEscalonador : public Escalonador {
+class PriopDEscalonador : public Escalonador {
 public:
-    SRTFEscalonador()  = default;
-    ~SRTFEscalonador() override = default;
+    PriopDEscalonador()  = default;
+    ~PriopDEscalonador() override = default;
 
-    bool isPreemptivo() const override { return false; }
+    bool isPreemptivo() const override { return true; }
 
     ResultadoEscalonamento escalonar(
         std::vector<Tarefa>&       tarefas,

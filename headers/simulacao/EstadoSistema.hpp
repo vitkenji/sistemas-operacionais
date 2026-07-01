@@ -9,6 +9,7 @@ struct SnapshotTarefa {
     EstadoTarefa estado;
     int          tempoRestante;
     int          quantumRestante;
+    int          prioridadeDinamica;
 };
 
 // snapshot do sistema depois de um tick.

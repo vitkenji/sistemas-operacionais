@@ -36,9 +36,10 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
             config.algoritmo = toLower(campos[0]);
             if (config.algoritmo.empty()) {
                 config.algoritmo = "priop";
-            } else if (config.algoritmo != "srtf" && config.algoritmo != "priop") {
+            } else if (config.algoritmo != "srtf" && config.algoritmo != "priop" &&
+                       config.algoritmo != "priopd") {
                 config.erroMensagem = "Algoritmo invalido: '" + campos[0] +
-                    "'. Valores aceitos: SRTF, PRIOP";
+                    "'. Valores aceitos: SRTF, PRIOP, PRIOPD";
                 return config;
             }
             try {

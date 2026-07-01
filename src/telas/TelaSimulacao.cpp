@@ -131,7 +131,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
     // nomes dos estados para o combo de edição manual
     static const char* estados[] = {"Nova","Pronta","Em Execucao","Suspensa","Terminada"};
 
-    if (!ImGui::BeginTable("tblTarefas", 9,
+    if (!ImGui::BeginTable("tblTarefas", 10,
             ImGuiTableFlags_Borders    |
             ImGuiTableFlags_RowBg      |
             ImGuiTableFlags_ScrollY    |
@@ -147,6 +147,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
     ImGui::TableSetupColumn("Quantum",    ImGuiTableColumnFlags_WidthFixed, 55.f);
     ImGui::TableSetupColumn("CPU",        ImGuiTableColumnFlags_WidthFixed, 40.f);
     ImGui::TableSetupColumn("Prioridade", ImGuiTableColumnFlags_WidthFixed, 75.f);
+    ImGui::TableSetupColumn("P.Din.",     ImGuiTableColumnFlags_WidthFixed, 55.f);
     ImGui::TableSetupColumn("Ingresso",   ImGuiTableColumnFlags_WidthFixed, 65.f);
     ImGui::TableSetupColumn("Editar",     ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableHeadersRow();
@@ -190,10 +191,13 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
         ImGui::Text("%d", t.getPrioridade());
 
         ImGui::TableSetColumnIndex(7);
+        ImGui::Text("%d", t.getPrioridadeDinamica());
+
+        ImGui::TableSetColumnIndex(8);
         ImGui::Text("%d", t.getIngresso());
 
         // edição manual do estado
-        ImGui::TableSetColumnIndex(8);
+        ImGui::TableSetColumnIndex(9);
         EstadoTarefa estadoAtual = t.getEstadoAtual();
         bool terminada   = estadoAtual == EstadoTarefa::Terminada;
         bool bloqueaNova = (estadoAtual == EstadoTarefa::Pronta   ||

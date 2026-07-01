@@ -8,6 +8,7 @@ Tarefa::Tarefa(std::string id, std::string corHex, int ingresso, int duracao,
       ingresso(ingresso),
       duracao(duracao),
       prioridade(prioridade),
+      prioridadeDinamica(prioridade),
       lista_eventos(std::move(lista_eventos)),
       estadoAtual(EstadoTarefa::Nova),
       tempoRestante(duracao),
@@ -22,6 +23,7 @@ std::string Tarefa::getCorHex()     const { return corHex; }
 int         Tarefa::getIngresso()   const { return ingresso; }
 int         Tarefa::getDuracao()    const { return duracao; }
 int         Tarefa::getPrioridade() const { return prioridade; }
+int         Tarefa::getPrioridadeDinamica() const { return prioridadeDinamica; }
 
 EstadoTarefa Tarefa::getEstadoAtual()    const { return estadoAtual; }
 int          Tarefa::getTempoRestante()   const { return tempoRestante; }
@@ -30,6 +32,12 @@ int          Tarefa::getQuantumRestante() const { return quantumRestante; }
 void Tarefa::setEstadoAtual(EstadoTarefa estado)  { estadoAtual = estado; }
 void Tarefa::setTempoRestante(int t)              { tempoRestante = t; }
 void Tarefa::setQuantumRestante(int q)            { quantumRestante = q; }
+void Tarefa::setPrioridadeDinamica(int p)         { prioridadeDinamica = p; }
+void Tarefa::resetarPrioridadeDinamica()          { prioridadeDinamica = prioridade; }
+void Tarefa::incrementarPrioridadeDinamica(int incremento)
+{
+    prioridadeDinamica += incremento;
+}
 
 void Tarefa::decrementarTempoRestante()
 {

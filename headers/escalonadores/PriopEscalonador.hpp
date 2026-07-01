@@ -9,7 +9,7 @@ public:
     bool isPreemptivo() const override { return false; }
 
     ResultadoEscalonamento escalonar(
-        const std::vector<Tarefa>& tarefas,
+        std::vector<Tarefa>&       tarefas,
         const std::vector<CPU>&    cpus,
         int tempoAtual) override;
 };
