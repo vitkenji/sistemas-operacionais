@@ -179,9 +179,12 @@ void GerenciadorSimulacao::computarProximoTick()
         }
     };
 
+    if (processarIRQsIO(T, eventosTick))
+        deveReescalonar = true;
+
     // Ações no instante atual da tarefa acontecem antes de término, quantum ou nova escolha.
     // Isso cobre casos como MUxx no instante final da execução da tarefa.
-    if (processarAcoesMutex(eventosTick))
+    if (processarAcoesTarefas(T, eventosTick))
         deveReescalonar = true;
 
     // tarefas que finalizaram ao final do tick anterior
@@ -228,7 +231,7 @@ void GerenciadorSimulacao::computarProximoTick()
             deveReescalonar = false;
         }
 
-        bool acoesPedemReescalonamento = processarAcoesMutex(eventosTick);
+        bool acoesPedemReescalonamento = processarAcoesTarefas(T, eventosTick);
         if (!acoesPedemReescalonamento)
             break;
 
@@ -279,6 +282,7 @@ void GerenciadorSimulacao::aplicarEstado(const EstadoSistema& estado)
             mutex.filaEspera.push_back(tarefaId);
         mutexes.push_back(mutex);
     }
+    ioAtivas = estado.ioAtivas;
 
     for (auto& cpu : cpus) {
         auto itA = estado.alocacaoCPU.find(cpu.id);
@@ -320,6 +324,7 @@ EstadoSistema GerenciadorSimulacao::buildSnapshot(const std::vector<std::string>
             snapMutex.filaEspera.push_back(tarefaId);
         snap.mutexes.push_back(snapMutex);
     }
+    snap.ioAtivas = ioAtivas;
 
     return snap;
 }
@@ -328,10 +333,38 @@ void GerenciadorSimulacao::inicializarMutexes()
 {
     for (const auto& tarefa : listaTarefas)
         for (const auto& acao : tarefa.getAcoes())
-            getOrCreateMutex(acao.mutexId);
+            if (acao.tipo == TipoAcaoTarefa::SolicitarMutex ||
+                acao.tipo == TipoAcaoTarefa::LiberarMutex)
+                getOrCreateMutex(acao.mutexId);
 }
 
-bool GerenciadorSimulacao::processarAcoesMutex(std::vector<EventoGantt>& eventos)
+bool GerenciadorSimulacao::processarIRQsIO(int tick, std::vector<EventoGantt>& eventos)
+{
+    bool precisaReescalonar = false;
+
+    auto it = ioAtivas.begin();
+    while (it != ioAtivas.end()) {
+        if (it->tickIRQ != tick) {
+            ++it;
+            continue;
+        }
+
+        Tarefa* tarefa = findTarefa(it->tarefaId);
+        if (tarefa && tarefa->getEstadoAtual() == EstadoTarefa::Suspensa &&
+            tarefa->getMotivoSuspensao() == MotivoSuspensao::EntradaSaida) {
+            tarefa->setEstadoAtual(EstadoTarefa::Pronta);
+            tarefa->setMotivoSuspensao(MotivoSuspensao::Nenhum);
+            precisaReescalonar = true;
+        }
+
+        eventos.push_back({it->tarefaId, TipoEventoGantt::IRQ, -1});
+        it = ioAtivas.erase(it);
+    }
+
+    return precisaReescalonar;
+}
+
+bool GerenciadorSimulacao::processarAcoesTarefas(int tick, std::vector<EventoGantt>& eventos)
 {
     bool precisaReescalonar = false;
 
@@ -354,9 +387,8 @@ bool GerenciadorSimulacao::processarAcoesMutex(std::vector<EventoGantt>& eventos
             if (acao.tempoRelativo > tarefa->getTempoExecutado())
                 break;
 
-            Mutex& mutex = getOrCreateMutex(acao.mutexId);
-
             if (acao.tipo == TipoAcaoTarefa::SolicitarMutex) {
+                Mutex& mutex = getOrCreateMutex(acao.mutexId);
                 eventos.push_back({tarefa->getID(), TipoEventoGantt::SolicitarMutex, acao.mutexId});
                 tarefa->avancarAcao();
 
@@ -376,7 +408,8 @@ bool GerenciadorSimulacao::processarAcoesMutex(std::vector<EventoGantt>& eventos
                 cpu.ligada = false;
                 precisaReescalonar = true;
                 bloqueou = true;
-            } else {
+            } else if (acao.tipo == TipoAcaoTarefa::LiberarMutex) {
+                Mutex& mutex = getOrCreateMutex(acao.mutexId);
                 eventos.push_back({tarefa->getID(), TipoEventoGantt::LiberarMutex, acao.mutexId});
                 tarefa->avancarAcao();
 
@@ -399,6 +432,17 @@ bool GerenciadorSimulacao::processarAcoesMutex(std::vector<EventoGantt>& eventos
                     proxima->setMotivoSuspensao(MotivoSuspensao::Nenhum);
                     precisaReescalonar = true;
                 }
+            } else {
+                eventos.push_back({tarefa->getID(), TipoEventoGantt::InicioIO, -1});
+                tarefa->avancarAcao();
+                tarefa->setEstadoAtual(EstadoTarefa::Suspensa);
+                tarefa->setMotivoSuspensao(MotivoSuspensao::EntradaSaida);
+                ioAtivas.push_back({tarefa->getID(), tick + acao.duracaoIO,
+                                    acao.duracaoIO, acao.tempoRelativo});
+                cpu.tarefaAtualID = "";
+                cpu.ligada = false;
+                precisaReescalonar = true;
+                bloqueou = true;
             }
         }
     }
@@ -430,8 +474,12 @@ bool GerenciadorSimulacao::hasTarefaProntaOuExecutando() const
 int GerenciadorSimulacao::tickLimite() const
 {
     int soma = 0;
-    for (const auto& t : listaTarefas)
+    for (const auto& t : listaTarefas) {
         soma += t.getDuracao();
+        for (const auto& acao : t.getAcoes())
+            if (acao.tipo == TipoAcaoTarefa::EntradaSaida)
+                soma += acao.duracaoIO;
+    }
     int maxIngresso = 0;
     for (const auto& t : listaTarefas)
         maxIngresso = std::max(maxIngresso, t.getIngresso());

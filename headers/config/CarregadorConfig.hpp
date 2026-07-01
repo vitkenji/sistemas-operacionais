@@ -26,4 +26,5 @@ private:
     static std::vector<std::string> split(const std::string& s, char delim);
     static std::string              trim(const std::string& s);
     static bool                     parseAcaoMutex(const std::string& s, AcaoTarefa& acao);
+    static bool                     parseAcaoIO(const std::string& s, AcaoTarefa& acao);
 };

@@ -93,15 +93,19 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
                         continue;
 
                     std::string tokenLower = toLower(token);
-                    if (tokenLower.rfind("io:", 0) == 0)
-                        continue;
 
                     AcaoTarefa acao{};
                     if (parseAcaoMutex(token, acao)) {
                         acoes.push_back(acao);
+                    } else if (parseAcaoIO(token, acao)) {
+                        acoes.push_back(acao);
                     } else if (tokenLower.rfind("ml", 0) == 0 || tokenLower.rfind("mu", 0) == 0) {
                         config.erroMensagem = "Linha " + std::to_string(numeroLinha) +
                             ": acao de mutex invalida: '" + token + "'";
+                        return config;
+                    } else if (tokenLower.rfind("io", 0) == 0) {
+                        config.erroMensagem = "Linha " + std::to_string(numeroLinha) +
+                            ": acao de E/S invalida: '" + token + "'";
                         return config;
                     }
                 }
@@ -183,5 +187,38 @@ bool CarregadorConfig::parseAcaoMutex(const std::string& s, AcaoTarefa& acao)
         : TipoAcaoTarefa::LiberarMutex;
     acao.mutexId = std::stoi(mutexStr);
     acao.tempoRelativo = std::stoi(tempoStr);
+    acao.duracaoIO = 0;
+    return true;
+}
+
+bool CarregadorConfig::parseAcaoIO(const std::string& s, AcaoTarefa& acao)
+{
+    std::string token = trim(s);
+    std::string lower = toLower(token);
+    if (lower.rfind("io:", 0) != 0)
+        return false;
+
+    size_t sep = token.find('-');
+    if (sep == std::string::npos || sep <= 3 || sep + 1 >= token.size())
+        return false;
+
+    std::string tempoStr = token.substr(3, sep - 3);
+    std::string duracaoStr = token.substr(sep + 1);
+
+    for (char ch : tempoStr)
+        if (!std::isdigit(static_cast<unsigned char>(ch)))
+            return false;
+    for (char ch : duracaoStr)
+        if (!std::isdigit(static_cast<unsigned char>(ch)))
+            return false;
+
+    int duracao = std::stoi(duracaoStr);
+    if (duracao < 1)
+        return false;
+
+    acao.tipo = TipoAcaoTarefa::EntradaSaida;
+    acao.mutexId = -1;
+    acao.tempoRelativo = std::stoi(tempoStr);
+    acao.duracaoIO = duracao;
     return true;
 }

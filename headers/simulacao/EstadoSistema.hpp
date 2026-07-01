@@ -8,13 +8,22 @@
 
 enum class TipoEventoGantt {
     SolicitarMutex,
-    LiberarMutex
+    LiberarMutex,
+    InicioIO,
+    IRQ
 };
 
 struct EventoGantt {
     std::string tarefaId;
     TipoEventoGantt tipo;
     int mutexId;
+};
+
+struct OperacaoIO {
+    std::string tarefaId;
+    int tickIRQ;
+    int duracao;
+    int tempoRelativo;
 };
 
 // snapshot do estado de uma tarefa em um instante
@@ -41,6 +50,7 @@ struct EstadoSistema {
     std::map<int, bool>              cpuLigada;
     std::vector<SnapshotTarefa>      tarefas;
     std::vector<SnapshotMutex>       mutexes;
+    std::vector<OperacaoIO>          ioAtivas;
     std::vector<std::string>         sorteadas;
     std::vector<EventoGantt>         eventos;
 };

@@ -175,9 +175,14 @@ void TelaInicial::desenharResultado()
             std::string acoes;
             for (const auto& acao : t.getAcoes()) {
                 if (!acoes.empty()) acoes += " ";
-                acoes += (acao.tipo == TipoAcaoTarefa::SolicitarMutex) ? "ML" : "MU";
-                if (acao.mutexId < 10) acoes += "0";
-                acoes += std::to_string(acao.mutexId) + ":" + std::to_string(acao.tempoRelativo);
+                if (acao.tipo == TipoAcaoTarefa::EntradaSaida) {
+                    acoes += "IO:" + std::to_string(acao.tempoRelativo)
+                          + "-" + std::to_string(acao.duracaoIO);
+                } else {
+                    acoes += (acao.tipo == TipoAcaoTarefa::SolicitarMutex) ? "ML" : "MU";
+                    if (acao.mutexId < 10) acoes += "0";
+                    acoes += std::to_string(acao.mutexId) + ":" + std::to_string(acao.tempoRelativo);
+                }
             }
             if (acoes.empty()) ImGui::TextDisabled(".");
             else               ImGui::Text("%s", acoes.c_str());

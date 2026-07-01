@@ -91,6 +91,24 @@ static void iconMutexAcao(ImDrawList* dl, float cx, float cy, TipoEventoGantt ti
     dl->AddText(ImVec2(cx - 3.f, cy - 6.f), IM_COL32(0, 0, 0, 230), label);
 }
 
+static void iconIOAcao(ImDrawList* dl, float cx, float cy, TipoEventoGantt tipo)
+{
+    if (tipo == TipoEventoGantt::InicioIO) {
+        dl->AddRectFilled(ImVec2(cx - 5.f, cy - 5.f), ImVec2(cx + 5.f, cy + 5.f),
+                          IM_COL32(120, 180, 255, 235), 2.f);
+        dl->AddRect(ImVec2(cx - 5.f, cy - 5.f), ImVec2(cx + 5.f, cy + 5.f),
+                    IM_COL32(20, 60, 140, 230), 2.f);
+        dl->AddText(ImVec2(cx - 3.f, cy - 6.f), IM_COL32(0, 0, 0, 230), "I");
+        return;
+    }
+
+    dl->AddTriangleFilled(ImVec2(cx, cy - 6.f), ImVec2(cx + 6.f, cy + 5.f),
+                          ImVec2(cx - 6.f, cy + 5.f), IM_COL32(255, 235, 90, 240));
+    dl->AddTriangle(ImVec2(cx, cy - 6.f), ImVec2(cx + 6.f, cy + 5.f),
+                    ImVec2(cx - 6.f, cy + 5.f), IM_COL32(150, 120, 20, 255));
+    dl->AddText(ImVec2(cx - 3.f, cy - 4.f), IM_COL32(0, 0, 0, 230), "!");
+}
+
 static void preencherSuspensaMutex(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
 {
     dl->AddRectFilled(p0, p1, IM_COL32(20, 20, 20, 235), 3.f);
@@ -99,6 +117,16 @@ static void preencherSuspensaMutex(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
                     IM_COL32(120, 120, 120, 180), 1.f);
     }
     dl->AddRect(p0, p1, IM_COL32(150, 150, 150, 180), 3.f);
+}
+
+static void preencherSuspensaIO(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
+{
+    dl->AddRectFilled(p0, p1, IM_COL32(20, 45, 95, 235), 3.f);
+    for (float y = p0.y + 4.f; y < p1.y; y += 6.f) {
+        dl->AddLine(ImVec2(p0.x + 2.f, y), ImVec2(p1.x - 2.f, y),
+                    IM_COL32(135, 185, 255, 175), 1.f);
+    }
+    dl->AddRect(p0, p1, IM_COL32(120, 170, 250, 180), 3.f);
 }
 
 // desenha linha de legenda imediatamente abaixo do child do Gantt.
@@ -183,6 +211,24 @@ static void desenharLegenda()
         ImGui::SameLine(0.f, GT);
     };
 
+    auto ioAcao = [&](TipoEventoGantt tipo, const char* label) {
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        iconIOAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f, tipo);
+        ImGui::Dummy(ImVec2(S, S));
+        ImGui::SameLine(0.f, GI);
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(0.f, GT);
+    };
+
+    auto suspensaIO = [&](const char* label) {
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        preencherSuspensaIO(dl, p, ImVec2(p.x + S, p.y + S));
+        ImGui::Dummy(ImVec2(S, S));
+        ImGui::SameLine(0.f, GI);
+        ImGui::TextUnformatted(label);
+        ImGui::SameLine(0.f, GT);
+    };
+
     ImGui::Spacing();
     ImGui::SameLine(0.f, 8.f);
 
@@ -190,11 +236,14 @@ static void desenharLegenda()
     retang(0,                          IM_COL32(110,110,110,200), "Pronta");
     retang(IM_COL32(  0,  0,  0,230), IM_COL32( 80, 80, 80,200), "Suspensa");
     suspensaMutex("Suspensa por mutex");
+    suspensaIO("Suspensa por E/S");
     chegada("Chegada");
     termino("Termino");
     sorteio("Sorteio");
     mutexAcao(TipoEventoGantt::SolicitarMutex, "Solicita mutex");
     mutexAcao(TipoEventoGantt::LiberarMutex, "Libera mutex");
+    ioAcao(TipoEventoGantt::InicioIO, "Inicio E/S");
+    ioAcao(TipoEventoGantt::IRQ, "IRQ");
     retang(IM_COL32( 90, 20, 20,210), 0,                          "CPU desligada");
 
     ImGui::NewLine();
@@ -314,6 +363,8 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
                 case EstadoTarefa::Suspensa:
                     if (motivoDaTarefa(snap, id) == MotivoSuspensao::Mutex)
                         preencherSuspensaMutex(dl, p0, p1);
+                    else if (motivoDaTarefa(snap, id) == MotivoSuspensao::EntradaSaida)
+                        preencherSuspensaIO(dl, p0, p1);
                     else
                         dl->AddRectFilled(p0, p1, IM_COL32(0, 0, 0, 230), 3.f);
                     break;
@@ -331,8 +382,13 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
             int eventoIdx = 0;
             for (const auto& evento : snap.eventos) {
                 if (evento.tarefaId == id) {
-                    iconMutexAcao(dl, cellX + 6.f + eventoIdx * 9.f, rowY + CELL_H - 8.f,
-                                  evento.tipo);
+                    float cx = cellX + 6.f + eventoIdx * 9.f;
+                    float cy = rowY + CELL_H - 8.f;
+                    if (evento.tipo == TipoEventoGantt::InicioIO ||
+                        evento.tipo == TipoEventoGantt::IRQ)
+                        iconIOAcao(dl, cx, cy, evento.tipo);
+                    else
+                        iconMutexAcao(dl, cx, cy, evento.tipo);
                     eventoIdx++;
                 }
             }

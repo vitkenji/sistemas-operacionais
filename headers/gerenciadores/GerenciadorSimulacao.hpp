@@ -16,6 +16,7 @@ private:
     std::vector<Tarefa>        listaTarefas;
     std::vector<CPU>           cpus;
     std::vector<Mutex>         mutexes;
+    std::vector<OperacaoIO>    ioAtivas;
     Escalonador*               pEscalonador;
     int                        quantum;
 
@@ -32,7 +33,8 @@ private:
     EstadoSistema buildSnapshot(const std::vector<std::string>& sorteadas = {},
                                 const std::vector<EventoGantt>& eventos = {}) const;
     void          inicializarMutexes();
-    bool          processarAcoesMutex(std::vector<EventoGantt>& eventos);
+    bool          processarIRQsIO(int tick, std::vector<EventoGantt>& eventos);
+    bool          processarAcoesTarefas(int tick, std::vector<EventoGantt>& eventos);
     bool          todasTerminadas() const;
     bool          hasTarefaProntaOuExecutando() const;
     int           tickLimite() const;

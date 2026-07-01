@@ -18,19 +18,22 @@ enum class EstadoTarefa {
 
 enum class TipoAcaoTarefa {
     SolicitarMutex,
-    LiberarMutex
+    LiberarMutex,
+    EntradaSaida
 };
 
 enum class MotivoSuspensao {
     Nenhum,
     Manual,
-    Mutex
+    Mutex,
+    EntradaSaida
 };
 
 struct AcaoTarefa {
     TipoAcaoTarefa tipo;
     int mutexId;
     int tempoRelativo;
+    int duracaoIO;
 };
 
 // TCB: representa uma tarefa no simulador.
