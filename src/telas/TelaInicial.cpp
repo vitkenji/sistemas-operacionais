@@ -15,6 +15,28 @@ static ImVec4 hexParaImVec4(const std::string& hex)
     } catch (...) { return ImVec4(1.f, 1.f, 1.f, 1.f); }
 }
 
+static std::string formatarAcao(const AcaoTarefa& acao)
+{
+    if (acao.tipo == TipoAcaoTarefa::EntradaSaida) {
+        return "IO:" + std::to_string(acao.tempoRelativo)
+             + "-" + std::to_string(acao.duracaoIO);
+    }
+
+    std::string texto = (acao.tipo == TipoAcaoTarefa::SolicitarMutex) ? "ML" : "MU";
+    if (acao.mutexId < 10) texto += "0";
+    return texto + std::to_string(acao.mutexId) + ":" + std::to_string(acao.tempoRelativo);
+}
+
+static std::string formatarAcoes(const Tarefa& tarefa)
+{
+    std::string texto;
+    for (const auto& acao : tarefa.getAcoes()) {
+        if (!texto.empty()) texto += " ";
+        texto += formatarAcao(acao);
+    }
+    return texto;
+}
+
 TelaInicial::TelaInicial()
 {
     caminhoArquivo[0] = '\0';
@@ -101,6 +123,9 @@ void TelaInicial::desenharFormulario()
     if (ImGui::Button("Exemplo 4 - PRIOP complexo", ImVec2(240, 0)))
         carregarExemplo("exemplos/04_priop_complexo.txt");
 
+    if (ImGui::Button("Exemplo 5 - PRIOPD", ImVec2(240, 0)))
+        carregarExemplo("exemplos/05_priopd.txt");
+
     if (tentouCarregar && !ultimaConfig.valida) {
         ImGui::Spacing();
         ImGui::TextColored(ImVec4(1.f, 0.3f, 0.3f, 1.f),
@@ -172,24 +197,15 @@ void TelaInicial::desenharResultado()
             ImGui::Text("%d", t.getPrioridade());
 
             ImGui::TableSetColumnIndex(5);
-            std::string acoes;
-            for (const auto& acao : t.getAcoes()) {
-                if (!acoes.empty()) acoes += " ";
-                if (acao.tipo == TipoAcaoTarefa::EntradaSaida) {
-                    acoes += "IO:" + std::to_string(acao.tempoRelativo)
-                          + "-" + std::to_string(acao.duracaoIO);
-                } else {
-                    acoes += (acao.tipo == TipoAcaoTarefa::SolicitarMutex) ? "ML" : "MU";
-                    if (acao.mutexId < 10) acoes += "0";
-                    acoes += std::to_string(acao.mutexId) + ":" + std::to_string(acao.tempoRelativo);
-                }
-            }
+            std::string acoes = formatarAcoes(t);
             if (acoes.empty()) ImGui::TextDisabled(".");
-            else               ImGui::Text("%s", acoes.c_str());
+            else               ImGui::TextWrapped("%s", acoes.c_str());
         }
 
         ImGui::EndTable();
     }
+
+    ImGui::TextDisabled("Eventos: MLxx:tt solicita mutex; MUxx:tt libera mutex; IO:tt-dd executa E/S.");
 
     ImGui::Spacing();
     ImGui::Separator();

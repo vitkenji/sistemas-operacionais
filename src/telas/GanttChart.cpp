@@ -111,12 +111,12 @@ static void iconIOAcao(ImDrawList* dl, float cx, float cy, TipoEventoGantt tipo)
 
 static void preencherSuspensaMutex(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
 {
-    dl->AddRectFilled(p0, p1, IM_COL32(20, 20, 20, 235), 3.f);
-    for (float x = p0.x - (p1.y - p0.y); x < p1.x; x += 6.f) {
-        dl->AddLine(ImVec2(x, p1.y), ImVec2(x + (p1.y - p0.y), p0.y),
-                    IM_COL32(120, 120, 120, 180), 1.f);
+    dl->AddRectFilled(p0, p1, IM_COL32(75, 30, 70, 235), 3.f);
+    for (float y = p0.y + 4.f; y < p1.y; y += 6.f) {
+        dl->AddLine(ImVec2(p0.x + 2.f, y), ImVec2(p1.x - 2.f, y),
+                    IM_COL32(245, 145, 220, 175), 1.f);
     }
-    dl->AddRect(p0, p1, IM_COL32(150, 150, 150, 180), 3.f);
+    dl->AddRect(p0, p1, IM_COL32(230, 120, 205, 190), 3.f);
 }
 
 static void preencherSuspensaIO(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
@@ -240,10 +240,10 @@ static void desenharLegenda()
     chegada("Chegada");
     termino("Termino");
     sorteio("Sorteio");
-    mutexAcao(TipoEventoGantt::SolicitarMutex, "Solicita mutex");
-    mutexAcao(TipoEventoGantt::LiberarMutex, "Libera mutex");
-    ioAcao(TipoEventoGantt::InicioIO, "Inicio E/S");
-    ioAcao(TipoEventoGantt::IRQ, "IRQ");
+    mutexAcao(TipoEventoGantt::SolicitarMutex, "Solicitacao de mutex");
+    mutexAcao(TipoEventoGantt::LiberarMutex, "Liberacao de mutex");
+    ioAcao(TipoEventoGantt::InicioIO, "Inicio de E/S");
+    ioAcao(TipoEventoGantt::IRQ, "IRQ de E/S");
     retang(IM_COL32( 90, 20, 20,210), 0,                          "CPU desligada");
 
     ImGui::NewLine();

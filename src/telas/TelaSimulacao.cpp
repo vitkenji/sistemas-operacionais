@@ -1,6 +1,7 @@
 #include "telas/TelaSimulacao.hpp"
 #include "imgui.h"
 
+#include <cstdio>
 #include <string>
 
 static const char* nomeEstado(EstadoTarefa e)
@@ -36,6 +37,28 @@ static ImVec4 hexParaImVec4(const std::string& hex)
         unsigned b = std::stoul(hex.substr(4, 2), nullptr, 16);
         return ImVec4(r / 255.f, g / 255.f, b / 255.f, 1.f);
     } catch (...) { return ImVec4(1, 1, 1, 1); }
+}
+
+static std::string formatarAcao(const AcaoTarefa& acao)
+{
+    if (acao.tipo == TipoAcaoTarefa::EntradaSaida) {
+        return "IO:" + std::to_string(acao.tempoRelativo)
+             + "-" + std::to_string(acao.duracaoIO);
+    }
+
+    std::string texto = (acao.tipo == TipoAcaoTarefa::SolicitarMutex) ? "ML" : "MU";
+    if (acao.mutexId < 10) texto += "0";
+    return texto + std::to_string(acao.mutexId) + ":" + std::to_string(acao.tempoRelativo);
+}
+
+static std::string formatarAcoes(const Tarefa& tarefa)
+{
+    std::string texto;
+    for (const auto& acao : tarefa.getAcoes()) {
+        if (!texto.empty()) texto += " ";
+        texto += formatarAcao(acao);
+    }
+    return texto;
 }
 
 // ponto de entrada 
@@ -131,7 +154,7 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
     // nomes dos estados para o combo de edição manual
     static const char* estados[] = {"Nova","Pronta","Em Execucao","Suspensa","Terminada"};
 
-    if (!ImGui::BeginTable("tblTarefas", 10,
+    if (!ImGui::BeginTable("tblTarefas", 11,
             ImGuiTableFlags_Borders    |
             ImGuiTableFlags_RowBg      |
             ImGuiTableFlags_ScrollY    |
@@ -149,7 +172,8 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
     ImGui::TableSetupColumn("Prioridade", ImGuiTableColumnFlags_WidthFixed, 75.f);
     ImGui::TableSetupColumn("P.Din.",     ImGuiTableColumnFlags_WidthFixed, 55.f);
     ImGui::TableSetupColumn("Ingresso",   ImGuiTableColumnFlags_WidthFixed, 65.f);
-    ImGui::TableSetupColumn("Editar",     ImGuiTableColumnFlags_WidthStretch);
+    ImGui::TableSetupColumn("Editar",     ImGuiTableColumnFlags_WidthFixed, 145.f);
+    ImGui::TableSetupColumn("Eventos",    ImGuiTableColumnFlags_WidthStretch);
     ImGui::TableHeadersRow();
 
     const auto& cpus = g->getCPUs();
@@ -223,9 +247,15 @@ void TelaSimulacao::desenharTabelaTarefas(GerenciadorSimulacao* g)
             ImGui::EndCombo();
         }
         ImGui::EndDisabled();
+
+        ImGui::TableSetColumnIndex(10);
+        std::string acoes = formatarAcoes(t);
+        if (acoes.empty()) ImGui::TextDisabled(".");
+        else               ImGui::TextWrapped("%s", acoes.c_str());
     }
 
     ImGui::EndTable();
+    ImGui::TextDisabled("Eventos: MLxx:tt solicita mutex; MUxx:tt libera mutex; IO:tt-dd executa E/S.");
 }
 
 // gantt
