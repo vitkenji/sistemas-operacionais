@@ -1,0 +1,27 @@
+{
+  "name": "sistemas-operacionais-cpp",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".",
+    "options": [
+      "--network=host"
+    ]
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ]
+    }
+  },
+  "containerEnv": {
+    "DISPLAY": "${localEnv:DISPLAY}"
+  },
+  "runArgs": [
+    "--network=host",
+    "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
+  ],
+  "postCreateCommand": "sudo chown -R vscode:vscode .git",
+  "remoteUser": "vscode"
+}
