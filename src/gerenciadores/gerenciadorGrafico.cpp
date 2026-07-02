@@ -1,10 +1,12 @@
 #include "gerenciadores/gerenciadorGrafico.hpp"
+#include <GLFW/glfw3.h>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <vector>
@@ -88,65 +90,192 @@ void GerenciadorGrafico::renderizar() {
     // desenha os dados na tela
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    // captura do framebuffer ANTES do swap: o back-buffer contém o frame completo.
-    if (!caminhoCaptura.empty()) {
-        capturarFramebuffer(caminhoCaptura, display_w, display_h);
-        caminhoCaptura.clear();
-    }
-
     // troca os buffers da janela
     glfwSwapBuffers(window);
 }
 
-void GerenciadorGrafico::pedirCaptura(const std::string& caminho,
-                                       float minX, float minY, float maxX, float maxY)
+bool GerenciadorGrafico::exportarPNG(
+    const std::string& caminho,
+    ImVec2 tamanho,
+    const std::function<void(ImDrawList*, ImVec2)>& desenhar)
 {
-    caminhoCaptura = caminho;
-    capturaMinX = minX; capturaMinY = minY;
-    capturaMaxX = maxX; capturaMaxY = maxY;
-}
+    if (!desenhar || caminho.empty() || tamanho.x <= 0.f || tamanho.y <= 0.f)
+        return false;
 
-void GerenciadorGrafico::capturarFramebuffer(const std::string& caminho, int w, int h)
-{
-    // escala lógico → físico (geralmente 1.0 no Windows; >1 em telas HiDPI)
-    ImGuiIO& io = ImGui::GetIO();
-    float sx = io.DisplayFramebufferScale.x;
-    float sy = io.DisplayFramebufferScale.y;
+    int w = std::max(1, (int)std::ceil(tamanho.x));
+    int h = std::max(1, (int)std::ceil(tamanho.y));
 
-    // determina a região de recorte em pixels físicos
-    int x0, y0, cw, ch;
-    if (capturaMaxX > capturaMinX && capturaMaxY > capturaMinY) {
-        const float pad = 6.f;
-        x0 = std::max(0,  (int)((capturaMinX - pad) * sx));
-        y0 = std::max(0,  (int)((capturaMinY - pad) * sy));
-        int x1 = std::min(w, (int)((capturaMaxX + pad) * sx));
-        int y1 = std::min(h, (int)((capturaMaxY + pad) * sy));
-        cw = x1 - x0;
-        ch = y1 - y0;
-    } else {
-        x0 = 0; y0 = 0; cw = w; ch = h;
+    unsigned char* texPixels = nullptr;
+    int texW = 0, texH = 0, texBpp = 0;
+    ImGui::GetIO().Fonts->GetTexDataAsRGBA32(&texPixels, &texW, &texH, &texBpp);
+    if (!texPixels || texW <= 0 || texH <= 0 || texBpp != 4) {
+        std::cerr << "[GerenciadorGrafico] Falha ao acessar textura da fonte para PNG.\n";
+        return false;
     }
 
-    if (cw <= 0 || ch <= 0) { x0 = 0; y0 = 0; cw = w; ch = h; }
+    ImDrawList drawList(ImGui::GetDrawListSharedData());
+    drawList._ResetForNewFrame();
+    drawList.PushClipRect(ImVec2(0.f, 0.f), ImVec2((float)w, (float)h), false);
+    desenhar(&drawList, ImVec2(0.f, 0.f));
+    drawList.PopClipRect();
+    drawList._PopUnusedDrawCmd();
 
-    // lê o framebuffer inteiro (OpenGL: y=0 é a base da tela)
-    int fullStride = w * 4;
-    std::vector<unsigned char> pixels((size_t)(fullStride * h));
-    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+    int stride = w * 4;
+    std::vector<unsigned char> out((size_t)(stride * h), 0);
 
-    // recorta e inverte Y (OpenGL base-esquerda → PNG topo-esquerda)
-    int outStride = cw * 4;
-    std::vector<unsigned char> out((size_t)(outStride * ch));
-    for (int row = 0; row < ch; ++row) {
-        int glRow = h - 1 - (y0 + row);
-        const unsigned char* src = pixels.data() + glRow * fullStride + x0 * 4;
-        std::memcpy(out.data() + row * outStride, src, (size_t)outStride);
+    auto edge = [](const ImVec2& a, const ImVec2& b, float x, float y) {
+        return (x - a.x) * (b.y - a.y) - (y - a.y) * (b.x - a.x);
+    };
+
+    auto blendPixel = [&](int x, int y, float r, float g, float b, float a) {
+        if (x < 0 || y < 0 || x >= w || y >= h || a <= 0.f)
+            return;
+
+        size_t off = (size_t)(y * stride + x * 4);
+        float dr = out[off + 0] / 255.f;
+        float dg = out[off + 1] / 255.f;
+        float db = out[off + 2] / 255.f;
+        float da = out[off + 3] / 255.f;
+
+        float invA = 1.f - a;
+        float oa = a + da * invA;
+        float orr = r * a + dr * invA;
+        float ogg = g * a + dg * invA;
+        float obb = b * a + db * invA;
+
+        out[off + 0] = (unsigned char)(std::max(0.f, std::min(1.f, orr)) * 255.f + 0.5f);
+        out[off + 1] = (unsigned char)(std::max(0.f, std::min(1.f, ogg)) * 255.f + 0.5f);
+        out[off + 2] = (unsigned char)(std::max(0.f, std::min(1.f, obb)) * 255.f + 0.5f);
+        out[off + 3] = (unsigned char)(std::max(0.f, std::min(1.f, oa)) * 255.f + 0.5f);
+    };
+
+    auto rasterizarTriangulo = [&](const ImDrawVert& v0,
+                                   const ImDrawVert& v1,
+                                   const ImDrawVert& v2,
+                                   const ImVec4& clip) {
+        float minXf = std::min(v0.pos.x, std::min(v1.pos.x, v2.pos.x));
+        float minYf = std::min(v0.pos.y, std::min(v1.pos.y, v2.pos.y));
+        float maxXf = std::max(v0.pos.x, std::max(v1.pos.x, v2.pos.x));
+        float maxYf = std::max(v0.pos.y, std::max(v1.pos.y, v2.pos.y));
+
+        int minX = std::max(0, (int)std::floor(std::max(minXf, clip.x)));
+        int minY = std::max(0, (int)std::floor(std::max(minYf, clip.y)));
+        int maxX = std::min(w - 1, (int)std::ceil(std::min(maxXf, clip.z)) - 1);
+        int maxY = std::min(h - 1, (int)std::ceil(std::min(maxYf, clip.w)) - 1);
+        if (minX > maxX || minY > maxY)
+            return;
+
+        float area = edge(v0.pos, v1.pos, v2.pos.x, v2.pos.y);
+        if (std::fabs(area) < 0.00001f)
+            return;
+
+        bool uvConstante =
+            std::fabs(v0.uv.x - v1.uv.x) < 0.00001f &&
+            std::fabs(v0.uv.y - v1.uv.y) < 0.00001f &&
+            std::fabs(v0.uv.x - v2.uv.x) < 0.00001f &&
+            std::fabs(v0.uv.y - v2.uv.y) < 0.00001f;
+
+        for (int y = minY; y <= maxY; ++y) {
+            for (int x = minX; x <= maxX; ++x) {
+                float px = x + 0.5f;
+                float py = y + 0.5f;
+
+                float e0 = edge(v1.pos, v2.pos, px, py);
+                float e1 = edge(v2.pos, v0.pos, px, py);
+                float e2 = edge(v0.pos, v1.pos, px, py);
+
+                if ((area > 0.f && (e0 < 0.f || e1 < 0.f || e2 < 0.f)) ||
+                    (area < 0.f && (e0 > 0.f || e1 > 0.f || e2 > 0.f)))
+                    continue;
+
+                float w0 = e0 / area;
+                float w1 = e1 / area;
+                float w2 = e2 / area;
+
+                float u = v0.uv.x * w0 + v1.uv.x * w1 + v2.uv.x * w2;
+                float v = v0.uv.y * w0 + v1.uv.y * w1 + v2.uv.y * w2;
+
+                auto comp = [](ImU32 col, int shift) {
+                    return (float)((col >> shift) & 0xFF) / 255.f;
+                };
+
+                float cr = comp(v0.col, IM_COL32_R_SHIFT) * w0 +
+                           comp(v1.col, IM_COL32_R_SHIFT) * w1 +
+                           comp(v2.col, IM_COL32_R_SHIFT) * w2;
+                float cg = comp(v0.col, IM_COL32_G_SHIFT) * w0 +
+                           comp(v1.col, IM_COL32_G_SHIFT) * w1 +
+                           comp(v2.col, IM_COL32_G_SHIFT) * w2;
+                float cb = comp(v0.col, IM_COL32_B_SHIFT) * w0 +
+                           comp(v1.col, IM_COL32_B_SHIFT) * w1 +
+                           comp(v2.col, IM_COL32_B_SHIFT) * w2;
+                float ca = comp(v0.col, IM_COL32_A_SHIFT) * w0 +
+                           comp(v1.col, IM_COL32_A_SHIFT) * w1 +
+                           comp(v2.col, IM_COL32_A_SHIFT) * w2;
+
+                float tr = 1.f, tg = 1.f, tb = 1.f, ta = 1.f;
+                if (!uvConstante) {
+                    int tx = std::max(0, std::min(texW - 1, (int)(u * texW)));
+                    int ty = std::max(0, std::min(texH - 1, (int)(v * texH)));
+                    const unsigned char* texel = texPixels + (ty * texW + tx) * 4;
+                    tr = texel[0] / 255.f;
+                    tg = texel[1] / 255.f;
+                    tb = texel[2] / 255.f;
+                    ta = texel[3] / 255.f;
+                }
+
+                blendPixel(x, y, tr * cr, tg * cg, tb * cb, ta * ca);
+            }
+        }
+    };
+
+    for (const ImDrawCmd& cmd : drawList.CmdBuffer) {
+        if (cmd.UserCallback || cmd.ElemCount == 0)
+            continue;
+
+        const ImVec4 clip(
+            std::max(0.f, cmd.ClipRect.x),
+            std::max(0.f, cmd.ClipRect.y),
+            std::min((float)w, cmd.ClipRect.z),
+            std::min((float)h, cmd.ClipRect.w));
+        if (clip.x >= clip.z || clip.y >= clip.w)
+            continue;
+
+        unsigned int idxEnd = cmd.IdxOffset + cmd.ElemCount;
+        for (unsigned int idx = cmd.IdxOffset; idx + 2 < idxEnd; idx += 3) {
+            ImDrawIdx i0 = drawList.IdxBuffer[(int)idx + 0];
+            ImDrawIdx i1 = drawList.IdxBuffer[(int)idx + 1];
+            ImDrawIdx i2 = drawList.IdxBuffer[(int)idx + 2];
+
+            const ImDrawVert& v0 = drawList.VtxBuffer[(int)(cmd.VtxOffset + i0)];
+            const ImDrawVert& v1 = drawList.VtxBuffer[(int)(cmd.VtxOffset + i1)];
+            const ImDrawVert& v2 = drawList.VtxBuffer[(int)(cmd.VtxOffset + i2)];
+            rasterizarTriangulo(v0, v1, v2, clip);
+        }
     }
 
-    if (!stbi_write_png(caminho.c_str(), cw, ch, 4, out.data(), outStride))
+    bool temVariacao = false;
+    for (size_t i = 4; i + 3 < out.size(); i += 4) {
+        if (out[i]     != out[0] ||
+            out[i + 1] != out[1] ||
+            out[i + 2] != out[2] ||
+            out[i + 3] != out[3]) {
+            temVariacao = true;
+            break;
+        }
+    }
+    if (!temVariacao) {
+        std::cerr << "[GerenciadorGrafico] Exportacao PNG gerou imagem vazia: "
+                  << caminho << '\n';
+        return false;
+    }
+
+    bool ok = stbi_write_png(caminho.c_str(), w, h, 4, out.data(), stride) != 0;
+    if (!ok)
         std::cerr << "[GerenciadorGrafico] Falha ao salvar PNG: " << caminho << '\n';
     else
         std::cout << "[GerenciadorGrafico] Gantt exportado: " << caminho << '\n';
+
+    return ok;
 }
 
 void GerenciadorGrafico::limpar() {

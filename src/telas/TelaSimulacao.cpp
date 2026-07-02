@@ -317,12 +317,9 @@ void TelaSimulacao::desenharControles(GerenciadorSimulacao* g, bool& voltar)
     ImGui::BeginDisabled(!g->isSimulacaoCompleta());
     if (ImGui::Button("Exportar PNG", ImVec2(120, 0))) {
         flagExportarPNG     = true;
-        exportacaoConcluida = true;
+        exportacaoConcluida = false;
+        exportacaoFalhou    = false;
         ultimaExportacao    = exportPath;
-        ganttMinX = gantt.getUltimaMinX();
-        ganttMinY = gantt.getUltimaMinY();
-        ganttMaxX = gantt.getUltimaMaxX();
-        ganttMaxY = gantt.getUltimaMaxY();
     }
     ImGui::EndDisabled();
 
@@ -330,6 +327,10 @@ void TelaSimulacao::desenharControles(GerenciadorSimulacao* g, bool& voltar)
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(0.4f, 1.f, 0.4f, 1.f),
                            "Exportado: %s", ultimaExportacao.c_str());
+    } else if (exportacaoFalhou) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.f, 0.35f, 0.35f, 1.f),
+                           "Falha ao exportar: %s", ultimaExportacao.c_str());
     }
 }
 
@@ -338,5 +339,12 @@ PedidoExportacao TelaSimulacao::consumirPedidoExportacao()
 {
     if (!flagExportarPNG) return {};
     flagExportarPNG = false;
-    return { ultimaExportacao, ganttMinX, ganttMinY, ganttMaxX, ganttMaxY };
+    return { ultimaExportacao };
+}
+
+void TelaSimulacao::registrarResultadoExportacao(const std::string& caminho, bool sucesso)
+{
+    ultimaExportacao = caminho;
+    exportacaoConcluida = sucesso;
+    exportacaoFalhou = !sucesso;
 }

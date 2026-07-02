@@ -6,7 +6,6 @@
 // dados devolvidos por consumirPedidoExportacao()
 struct PedidoExportacao {
     std::string caminho;
-    float minX = 0, minY = 0, maxX = 0, maxY = 0;
 };
 
 class TelaSimulacao {
@@ -17,13 +16,14 @@ public:
     // retorna pedido de exportação e limpa o estado interno.
     // caminho vazio = nenhum pedido pendente.
     PedidoExportacao consumirPedidoExportacao();
+    void registrarResultadoExportacao(const std::string& caminho, bool sucesso);
 
 private:
     GanttChart  gantt;
     bool        flagExportarPNG     = false;
     bool        exportacaoConcluida = false;
+    bool        exportacaoFalhou    = false;
     std::string ultimaExportacao;
-    float       ganttMinX = 0, ganttMinY = 0, ganttMaxX = 0, ganttMaxY = 0;
 
     void desenharPainelCPUs(GerenciadorSimulacao* g);
     void desenharTabelaTarefas(GerenciadorSimulacao* g);

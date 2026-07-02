@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 // hex -> ImVec4 
 static ImVec4 hexParaImVec4Gantt(const std::string& hex)
@@ -37,6 +38,36 @@ static MotivoSuspensao motivoDaTarefa(const EstadoSistema& snap, const std::stri
     if (const SnapshotTarefa* ts = snapshotDaTarefa(snap, id))
         return ts->motivoSuspensao;
     return MotivoSuspensao::Nenhum;
+}
+
+static const SnapshotMutex* snapshotDoMutex(const EstadoSistema& snap, int id)
+{
+    for (const auto& mutex : snap.mutexes)
+        if (mutex.id == id) return &mutex;
+    return nullptr;
+}
+
+static std::vector<int> coletarMutexIds(const std::vector<EstadoSistema>& hist)
+{
+    std::vector<int> mutexIds;
+    for (const auto& snap : hist) {
+        for (const auto& mutex : snap.mutexes) {
+            if (std::find(mutexIds.begin(), mutexIds.end(), mutex.id) == mutexIds.end())
+                mutexIds.push_back(mutex.id);
+        }
+    }
+    std::sort(mutexIds.begin(), mutexIds.end());
+    return mutexIds;
+}
+
+static std::vector<const Tarefa*> ordenarTarefasParaGantt(const std::vector<Tarefa>& tarefasRaw)
+{
+    std::vector<const Tarefa*> tarefas;
+    tarefas.reserve(tarefasRaw.size());
+    for (const auto& t : tarefasRaw) tarefas.push_back(&t);
+    std::sort(tarefas.begin(), tarefas.end(),
+              [](const Tarefa* a, const Tarefa* b){ return a->getID() > b->getID(); });
+    return tarefas;
 }
 
 // triângulo verde apontando para baixo — marca chegada da tarefa
@@ -129,162 +160,181 @@ static void preencherSuspensaIO(ImDrawList* dl, ImVec2 p0, ImVec2 p1)
     dl->AddRect(p0, p1, IM_COL32(120, 170, 250, 180), 3.f);
 }
 
-// desenha linha de legenda imediatamente abaixo do child do Gantt.
-// cada item: pequeno ícone amostral + rótulo textual
-static void desenharLegenda()
+enum class IconeLegenda {
+    Retangulo,
+    Chegada,
+    Termino,
+    Sorteio,
+    SuspensaMutex,
+    SuspensaIO,
+    SolicitarMutex,
+    LiberarMutex,
+    InicioIO,
+    IRQ
+};
+
+struct ItemLegenda {
+    IconeLegenda icone;
+    ImU32 fill;
+    ImU32 border;
+    const char* label;
+};
+
+static void desenharIconeLegenda(ImDrawList* dl, IconeLegenda icone,
+                                 ImVec2 p, ImU32 fill, ImU32 border)
 {
-    ImDrawList* dl      = ImGui::GetWindowDrawList();
-    constexpr float S   = 14.f;   // lado do ícone amostral
-    constexpr float GI  =  4.f;   // gap ícone → texto
-    constexpr float GT  = 12.f;   // gap entre itens
+    constexpr float S = 14.f;
 
-    // retângulo + borda opcional
-    auto retang = [&](ImU32 fill, ImU32 border, const char* label) {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        if (fill)   dl->AddRectFilled(p, ImVec2(p.x + S, p.y + S), fill,   2.f);
-        if (border) dl->AddRect      (p, ImVec2(p.x + S, p.y + S), border, 2.f);
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    // triângulo verde (chegada)
-    auto chegada = [&](const char* label) {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        float cx = p.x + S * 0.5f, top = p.y + 1.f;
-        dl->AddTriangleFilled(ImVec2(cx-5,top), ImVec2(cx+5,top), ImVec2(cx,top+8),
-                              IM_COL32(50,210,50,240));
-        dl->AddTriangle      (ImVec2(cx-5,top), ImVec2(cx+5,top), ImVec2(cx,top+8),
-                              IM_COL32(20,130,20,255));
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    // bandeira vermelha (término)
-    auto termino = [&](const char* label) {
-        ImVec2 p  = ImGui::GetCursorScreenPos();
-        float x   = p.x + 3.f, y0 = p.y, y1 = p.y + S;
-        float mid = y0 + (y1 - y0) * 0.35f;
-        dl->AddLine(ImVec2(x, y0), ImVec2(x, y1), IM_COL32(255,70,70,255), 1.5f);
-        dl->AddTriangleFilled(ImVec2(x, y0+2), ImVec2(x+7, mid),
-                              ImVec2(x, mid + (mid-y0-2)), IM_COL32(255,70,70,220));
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    // diamante amarelo (sorteio)
-    auto sorteio = [&](const char* label) {
-        ImVec2 p  = ImGui::GetCursorScreenPos();
-        float cx  = p.x + S * 0.5f, cy = p.y + S * 0.5f, r = 5.f;
-        dl->AddQuadFilled(ImVec2(cx,cy-r), ImVec2(cx+r,cy),
-                          ImVec2(cx,cy+r), ImVec2(cx-r,cy),
-                          IM_COL32(255,215,0,230));
-        dl->AddQuad      (ImVec2(cx,cy-r), ImVec2(cx+r,cy),
-                          ImVec2(cx,cy+r), ImVec2(cx-r,cy),
-                          IM_COL32(200,155,0,255));
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    auto mutexAcao = [&](TipoEventoGantt tipo, const char* label) {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        iconMutexAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f, tipo);
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    auto suspensaMutex = [&](const char* label) {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        preencherSuspensaMutex(dl, p, ImVec2(p.x + S, p.y + S));
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    auto ioAcao = [&](TipoEventoGantt tipo, const char* label) {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        iconIOAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f, tipo);
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    auto suspensaIO = [&](const char* label) {
-        ImVec2 p = ImGui::GetCursorScreenPos();
-        preencherSuspensaIO(dl, p, ImVec2(p.x + S, p.y + S));
-        ImGui::Dummy(ImVec2(S, S));
-        ImGui::SameLine(0.f, GI);
-        ImGui::TextUnformatted(label);
-        ImGui::SameLine(0.f, GT);
-    };
-
-    ImGui::Spacing();
-    ImGui::SameLine(0.f, 8.f);
-
-    retang(IM_COL32(255,165, 50,200), 0,                          "Executando (cor da tarefa)");
-    retang(0,                          IM_COL32(110,110,110,200), "Pronta");
-    retang(IM_COL32(  0,  0,  0,230), IM_COL32( 80, 80, 80,200), "Suspensa");
-    suspensaMutex("Suspensa por mutex");
-    suspensaIO("Suspensa por E/S");
-    chegada("Chegada");
-    termino("Termino");
-    sorteio("Sorteio");
-    mutexAcao(TipoEventoGantt::SolicitarMutex, "Solicitacao de mutex");
-    mutexAcao(TipoEventoGantt::LiberarMutex, "Liberacao de mutex");
-    ioAcao(TipoEventoGantt::InicioIO, "Inicio de E/S");
-    ioAcao(TipoEventoGantt::IRQ, "IRQ de E/S");
-    retang(IM_COL32( 90, 20, 20,210), 0,                          "CPU desligada");
-
-    ImGui::NewLine();
+    switch (icone) {
+        case IconeLegenda::Retangulo:
+            if (fill)   dl->AddRectFilled(p, ImVec2(p.x + S, p.y + S), fill, 2.f);
+            if (border) dl->AddRect(p, ImVec2(p.x + S, p.y + S), border, 2.f);
+            return;
+        case IconeLegenda::Chegada:
+            iconChegada(dl, p.x + S * 0.5f, p.y + 1.f);
+            return;
+        case IconeLegenda::Termino: {
+            float x = p.x + 3.f;
+            float y0 = p.y;
+            float mid = y0 + S * 0.35f;
+            dl->AddLine(ImVec2(x, y0), ImVec2(x, y0 + S),
+                        IM_COL32(255, 70, 70, 255), 1.5f);
+            dl->AddTriangleFilled(ImVec2(x, y0 + 2.f), ImVec2(x + 7.f, mid),
+                                  ImVec2(x, mid + (mid - y0 - 2.f)),
+                                  IM_COL32(255, 70, 70, 220));
+            return;
+        }
+        case IconeLegenda::Sorteio:
+            iconSorteio(dl, p.x + S * 0.5f, p.y + S * 0.5f);
+            return;
+        case IconeLegenda::SuspensaMutex:
+            preencherSuspensaMutex(dl, p, ImVec2(p.x + S, p.y + S));
+            return;
+        case IconeLegenda::SuspensaIO:
+            preencherSuspensaIO(dl, p, ImVec2(p.x + S, p.y + S));
+            return;
+        case IconeLegenda::SolicitarMutex:
+            iconMutexAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f,
+                          TipoEventoGantt::SolicitarMutex);
+            return;
+        case IconeLegenda::LiberarMutex:
+            iconMutexAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f,
+                          TipoEventoGantt::LiberarMutex);
+            return;
+        case IconeLegenda::InicioIO:
+            iconIOAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f,
+                       TipoEventoGantt::InicioIO);
+            return;
+        case IconeLegenda::IRQ:
+            iconIOAcao(dl, p.x + S * 0.5f, p.y + S * 0.5f,
+                       TipoEventoGantt::IRQ);
+            return;
+    }
 }
 
-// ponto de entrada
-
-void GanttChart::desenhar(GerenciadorSimulacao* g)
+ImVec2 GanttChart::calcularTamanhoTabela(GerenciadorSimulacao* g) const
 {
-    if (!g) return;
+    if (!g || g->getTarefas().empty())
+        return ImVec2(0.f, 0.f);
 
-    const auto& tarefasRaw = g->getTarefas();
-    if (tarefasRaw.empty()) {
-        ImGui::TextDisabled("Nenhuma tarefa carregada.");
-        return;
+    int tickMax = g->getTickAtual();
+    int nRows   = (int)g->getTarefas().size();
+    int nCPUs   = g->getQtdeCpus();
+
+    std::vector<int> mutexIds = coletarMutexIds(g->getHistorico());
+
+    float totalW = LABEL_W + std::max(1, tickMax) * CELL_W;
+    float totalH = HEADER_H + nRows * CELL_H + 6.f + nCPUs * CPU_ROW_H;
+    if (!mutexIds.empty())
+        totalH += 6.f + (float)mutexIds.size() * CPU_ROW_H;
+
+    return ImVec2(totalW, totalH);
+}
+
+float GanttChart::calcularAlturaLegenda(float largura) const
+{
+    return desenharLegendaEm(nullptr, ImVec2(0.f, 0.f), largura);
+}
+
+ImVec2 GanttChart::calcularTamanhoCompleto(GerenciadorSimulacao* g) const
+{
+    ImVec2 tabela = calcularTamanhoTabela(g);
+    if (tabela.x <= 0.f || tabela.y <= 0.f)
+        return tabela;
+
+    float largura = std::max(tabela.x, EXPORT_MIN_W);
+    return ImVec2(largura, tabela.y + calcularAlturaLegenda(largura));
+}
+
+float GanttChart::desenharLegendaEm(ImDrawList* dl, ImVec2 origin, float largura) const
+{
+    static const ItemLegenda itens[] = {
+        {IconeLegenda::Retangulo,       IM_COL32(255,165, 50,200), 0,                          "Executando (cor da tarefa)"},
+        {IconeLegenda::Retangulo,       0,                          IM_COL32(110,110,110,200), "Pronta"},
+        {IconeLegenda::Retangulo,       IM_COL32(  0,  0,  0,230), IM_COL32( 80, 80, 80,200), "Suspensa"},
+        {IconeLegenda::SuspensaMutex,   0,                          0,                          "Suspensa por mutex"},
+        {IconeLegenda::SuspensaIO,      0,                          0,                          "Suspensa por E/S"},
+        {IconeLegenda::Chegada,         0,                          0,                          "Chegada"},
+        {IconeLegenda::Termino,         0,                          0,                          "Termino"},
+        {IconeLegenda::Sorteio,         0,                          0,                          "Sorteio"},
+        {IconeLegenda::SolicitarMutex,  0,                          0,                          "Solicitacao de mutex"},
+        {IconeLegenda::LiberarMutex,    0,                          0,                          "Liberacao de mutex"},
+        {IconeLegenda::InicioIO,        0,                          0,                          "Inicio de E/S"},
+        {IconeLegenda::IRQ,             0,                          0,                          "IRQ de E/S"},
+        {IconeLegenda::Retangulo,       IM_COL32( 90, 20, 20,210), 0,                          "CPU desligada"},
+        {IconeLegenda::Retangulo,       IM_COL32(105, 55,125,220), IM_COL32(210,145,235,220),  "Mutex ocupado"}
+    };
+
+    constexpr float S        = 14.f;
+    constexpr float GI       =  4.f;
+    constexpr float GT       = 12.f;
+    constexpr float MARGEM_X =  8.f;
+    constexpr float MARGEM_Y =  6.f;
+    constexpr float LINE_H   = 20.f;
+
+    float x0 = origin.x + MARGEM_X;
+    float x  = x0;
+    float y  = origin.y + MARGEM_Y;
+    float xMax = origin.x + std::max(largura, 180.f) - MARGEM_X;
+
+    for (const ItemLegenda& item : itens) {
+        ImVec2 textSz = ImGui::CalcTextSize(item.label);
+        float itemW = S + GI + textSz.x + GT;
+
+        if (x > x0 && x + itemW > xMax) {
+            x = x0;
+            y += LINE_H;
+        }
+
+        if (dl) {
+            ImVec2 p(x, y + (LINE_H - S) * 0.5f);
+            desenharIconeLegenda(dl, item.icone, p, item.fill, item.border);
+            dl->AddText(ImVec2(x + S + GI, y + (LINE_H - textSz.y) * 0.5f),
+                        IM_COL32(220, 220, 220, 255), item.label);
+        }
+
+        x += itemW;
     }
 
+    return (y - origin.y) + LINE_H + MARGEM_Y;
+}
+
+void GanttChart::desenharTabelaEm(ImDrawList* dl, GerenciadorSimulacao* g, ImVec2 origin) const
+{
+    if (!dl || !g || g->getTarefas().empty())
+        return;
+
     int tickMax      = g->getTickAtual();
-    const auto& hist = g->getHistorico();   // hist[0..tickMax]
+    const auto& hist = g->getHistorico();
     int nCPUs        = g->getQtdeCpus();
 
-    // ID menor fica na linha mais baixa
-    std::vector<const Tarefa*> tarefas;
-    tarefas.reserve(tarefasRaw.size());
-    for (const auto& t : tarefasRaw) tarefas.push_back(&t);
-    std::sort(tarefas.begin(), tarefas.end(),
-              [](const Tarefa* a, const Tarefa* b){ return a->getID() > b->getID(); });
+    std::vector<int> mutexIds = coletarMutexIds(hist);
+    std::vector<const Tarefa*> tarefas = ordenarTarefasParaGantt(g->getTarefas());
 
-    int   nRows  = (int)tarefas.size();
-    float totalW = LABEL_W + std::max(1, tickMax) * CELL_W;
-    // Altura: cabeçalho + linhas de tarefas + separador (6 px) + linhas de CPUs
-    float totalH = HEADER_H + nRows * CELL_H + 6.f + nCPUs * CPU_ROW_H;
-
-    float childH = std::min(totalH + 20.f, 420.f);
-    ImVec2 regionStart = ImGui::GetCursorScreenPos();
-    ImGui::BeginChild("##gantt_canvas", ImVec2(0.f, childH), false,
-                      ImGuiWindowFlags_HorizontalScrollbar);
-
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    ImVec2 origin  = ImGui::GetCursorScreenPos();   // já ajustado pelo scroll atual
-    ImGui::Dummy(ImVec2(totalW, totalH));            // dimensiona a área de scroll
+    int nRows = (int)tarefas.size();
+    ImVec2 tamanho = calcularTamanhoTabela(g);
+    float totalW = tamanho.x;
+    float totalH = tamanho.y;
 
     // fundo
     dl->AddRectFilled(origin, ImVec2(origin.x + totalW, origin.y + totalH),
@@ -304,7 +354,7 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
     for (int t = 1; t <= tickMax; ++t) {
         float x = origin.x + LABEL_W + (t - 1) * CELL_W;
         if (t == 1 || t % 5 == 0 || t == tickMax) {
-            char buf[8];
+            char buf[16];
             std::snprintf(buf, sizeof(buf), "%d", t);
             dl->AddText(ImVec2(x + 2.f, origin.y + 4.f),
                         IM_COL32(180, 180, 180, 255), buf);
@@ -337,8 +387,8 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
             EstadoTarefa estado = estadoDaTarefa(snap, id);
 
             int cpuId = -1;
-            for (const auto& [cid, tid] : snap.alocacaoCPU)
-                if (tid == id) { cpuId = cid; break; }
+            for (const auto& alocacao : snap.alocacaoCPU)
+                if (alocacao.second == id) { cpuId = alocacao.first; break; }
 
             float cellX = origin.x + LABEL_W + (t - 1) * CELL_W;
             ImVec2 p0(cellX + 1.f, rowY + 2.f);
@@ -350,7 +400,7 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
                                      hexParaImVec4Gantt(task->getCorHex()));
                     dl->AddRectFilled(p0, p1, fill, 3.f);
                     if (cpuId >= 0) {
-                        char cpuLbl[8];
+                        char cpuLbl[16];
                         std::snprintf(cpuLbl, sizeof(cpuLbl), "C%d", cpuId);
                         dl->AddText(ImVec2(p0.x + 2.f, rowY + (CELL_H - 13.f) * 0.5f),
                                     IM_COL32(0, 0, 0, 200), cpuLbl);
@@ -361,6 +411,7 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
                     dl->AddRect(p0, p1, IM_COL32(110, 110, 110, 120), 3.f);
                     break;
                 case EstadoTarefa::Suspensa:
+                    // Diferencia visualmente bloqueio por mutex e por E/S.
                     if (motivoDaTarefa(snap, id) == MotivoSuspensao::Mutex)
                         preencherSuspensaMutex(dl, p0, p1);
                     else if (motivoDaTarefa(snap, id) == MotivoSuspensao::EntradaSaida)
@@ -481,11 +532,104 @@ void GanttChart::desenhar(GerenciadorSimulacao* g)
                     IM_COL32(80, 80, 80, 200));
     }
 
+    if (!mutexIds.empty()) {
+        float mutexTop = cpuTop + nCPUs * CPU_ROW_H + 6.f;
+        dl->AddLine(ImVec2(origin.x, mutexTop - 3.f),
+                    ImVec2(origin.x + totalW, mutexTop - 3.f),
+                    IM_COL32(80, 80, 80, 220));
+
+        for (int row = 0; row < (int)mutexIds.size(); ++row) {
+            int mutexId = mutexIds[(size_t)row];
+            float mutexY = mutexTop + row * CPU_ROW_H;
+
+            dl->AddRectFilled(ImVec2(origin.x, mutexY),
+                              ImVec2(origin.x + totalW, mutexY + CPU_ROW_H),
+                              IM_COL32(32, 32, 32, 255));
+
+            char mutexLbl[16];
+            std::snprintf(mutexLbl, sizeof(mutexLbl), "M%02d", mutexId);
+            dl->AddText(ImVec2(origin.x + 3.f, mutexY + (CPU_ROW_H - 13.f) * 0.5f),
+                        IM_COL32(170, 145, 185, 255), mutexLbl);
+
+            for (int t = 1; t <= tickMax; ++t) {
+                const EstadoSistema& snap = hist[(size_t)t];
+                const SnapshotMutex* mutex = snapshotDoMutex(snap, mutexId);
+                if (!mutex || mutex->donoTarefaID.empty())
+                    continue;
+
+                float bx0 = origin.x + LABEL_W + (t - 1) * CELL_W + 1.f;
+                float bx1 = bx0 + CELL_W - 2.f;
+                dl->AddRectFilled(ImVec2(bx0, mutexY + 1.f),
+                                  ImVec2(bx1, mutexY + CPU_ROW_H - 1.f),
+                                  IM_COL32(105, 55, 125, 220), 2.f);
+                dl->AddRect(ImVec2(bx0, mutexY + 1.f),
+                            ImVec2(bx1, mutexY + CPU_ROW_H - 1.f),
+                            IM_COL32(210, 145, 235, 220), 2.f);
+                dl->AddText(ImVec2(bx0 + 2.f, mutexY + (CPU_ROW_H - 13.f) * 0.5f),
+                            IM_COL32(245, 220, 255, 255), mutex->donoTarefaID.c_str());
+            }
+
+            for (int t = 0; t <= tickMax; ++t)
+                dl->AddLine(ImVec2(origin.x + LABEL_W + t * CELL_W, mutexY),
+                            ImVec2(origin.x + LABEL_W + t * CELL_W, mutexY + CPU_ROW_H),
+                            IM_COL32(50, 50, 50, 180));
+            dl->AddLine(ImVec2(origin.x, mutexY + CPU_ROW_H),
+                        ImVec2(origin.x + totalW, mutexY + CPU_ROW_H),
+                        IM_COL32(55, 55, 55, 200));
+            dl->AddLine(ImVec2(origin.x + LABEL_W, mutexY),
+                        ImVec2(origin.x + LABEL_W, mutexY + CPU_ROW_H),
+                        IM_COL32(80, 80, 80, 200));
+        }
+    }
+
+
+}
+
+void GanttChart::desenharCompleto(ImDrawList* dl, GerenciadorSimulacao* g, ImVec2 origin) const
+{
+    if (!dl || !g || g->getTarefas().empty())
+        return;
+
+    ImVec2 total = calcularTamanhoCompleto(g);
+    ImVec2 tabela = calcularTamanhoTabela(g);
+
+    dl->AddRectFilled(origin, ImVec2(origin.x + total.x, origin.y + total.y),
+                      IM_COL32(28, 28, 28, 255));
+    desenharTabelaEm(dl, g, origin);
+    desenharLegendaEm(dl, ImVec2(origin.x, origin.y + tabela.y), total.x);
+}
+
+// ponto de entrada
+void GanttChart::desenhar(GerenciadorSimulacao* g)
+{
+    if (!g) return;
+
+    if (g->getTarefas().empty()) {
+        ImGui::TextDisabled("Nenhuma tarefa carregada.");
+        return;
+    }
+
+    ImVec2 tabela = calcularTamanhoTabela(g);
+    float childH = std::min(tabela.y + 20.f, 420.f);
+
+    ImVec2 regionStart = ImGui::GetCursorScreenPos();
+    ImGui::BeginChild("##gantt_canvas", ImVec2(0.f, childH), false,
+                      ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImVec2 origin  = ImGui::GetCursorScreenPos();
+    ImGui::Dummy(tabela);
+    desenharTabelaEm(dl, g, origin);
 
     ImGui::EndChild();
 
     float regionWidth = ImGui::GetItemRectSize().x;
-    desenharLegenda();
+    if (regionWidth <= 0.f)
+        regionWidth = tabela.x;
+
+    ImVec2 legendOrigin = ImGui::GetCursorScreenPos();
+    float legendH = desenharLegendaEm(ImGui::GetWindowDrawList(), legendOrigin, regionWidth);
+    ImGui::Dummy(ImVec2(regionWidth, legendH));
     ImVec2 regionEnd = ImGui::GetCursorScreenPos();
 
     ultimaMinX = regionStart.x;

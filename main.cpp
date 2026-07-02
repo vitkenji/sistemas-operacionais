@@ -26,10 +26,17 @@ int main()
             bool voltar = telaSimulacao.desenhar(g);
 
             PedidoExportacao pedido = telaSimulacao.consumirPedidoExportacao();
-            if (!pedido.caminho.empty())
-                gerenciadorGrafico.pedirCaptura(pedido.caminho,
-                                                pedido.minX, pedido.minY,
-                                                pedido.maxX, pedido.maxY);
+            if (!pedido.caminho.empty()) {
+                GanttChart exportador;
+                ImVec2 tamanho = exportador.calcularTamanhoCompleto(g);
+                bool sucesso = gerenciadorGrafico.exportarPNG(
+                    pedido.caminho,
+                    tamanho,
+                    [&](ImDrawList* dl, ImVec2 origem) {
+                        exportador.desenharCompleto(dl, g, origem);
+                    });
+                telaSimulacao.registrarResultadoExportacao(pedido.caminho, sucesso);
+            }
 
             if (voltar)
                 telaInicial.resetar();
