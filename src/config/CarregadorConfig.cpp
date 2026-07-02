@@ -109,6 +109,10 @@ ConfigSimulacao CarregadorConfig::carregar(const std::string& caminho)
                         return config;
                     }
                 }
+                std::stable_sort(acoes.begin(), acoes.end(),
+                    [](const AcaoTarefa& a, const AcaoTarefa& b) {
+                        return a.tempoRelativo < b.tempoRelativo;
+                    });
 
                 config.tarefas.emplace_back(id, cor, ingresso, duracao, prioridade, acoes);
             } catch (...) {
