@@ -179,6 +179,7 @@ void GerenciadorSimulacao::computarProximoTick()
         }
     };
 
+    // IRQ de E/S volta tarefas suspensas para prontas antes do escalonamento.
     if (processarIRQsIO(T, eventosTick))
         deveReescalonar = true;
 
@@ -223,6 +224,8 @@ void GerenciadorSimulacao::computarProximoTick()
     if (temTarefaPronta() && temCpuLivre())
         deveReescalonar = true;
 
+    // Reprocessa acoes apos escalonar, pois uma tarefa pode bloquear por mutex
+    // ou E/S logo ao entrar na CPU.
     int guarda = 0;
     while (guarda++ < (int)listaTarefas.size() + (int)cpus.size() + 10) {
         if (deveReescalonar) {
@@ -349,6 +352,7 @@ bool GerenciadorSimulacao::processarIRQsIO(int tick, std::vector<EventoGantt>& e
             continue;
         }
 
+        // Ao receber a IRQ, a tarefa termina a E/S e volta para pronta.
         Tarefa* tarefa = findTarefa(it->tarefaId);
         if (tarefa && tarefa->getEstadoAtual() == EstadoTarefa::Suspensa &&
             tarefa->getMotivoSuspensao() == MotivoSuspensao::EntradaSaida) {
@@ -368,6 +372,8 @@ bool GerenciadorSimulacao::processarAcoesTarefas(int tick, std::vector<EventoGan
 {
     bool precisaReescalonar = false;
 
+    // Eventos sao relativos ao tempo executado da tarefa, por isso so tarefas
+    // em execucao podem disparar ML, MU ou IO.
     for (auto& cpu : cpus) {
         if (cpu.tarefaAtualID.empty())
             continue;
@@ -397,6 +403,7 @@ bool GerenciadorSimulacao::processarAcoesTarefas(int tick, std::vector<EventoGan
                     continue;
                 }
 
+                // Mutex ocupado: a tarefa entra na fila e fica suspensa.
                 auto jaEsperando = std::find(mutex.filaEspera.begin(), mutex.filaEspera.end(),
                                              tarefa->getID());
                 if (jaEsperando == mutex.filaEspera.end())
@@ -421,6 +428,8 @@ bool GerenciadorSimulacao::processarAcoesTarefas(int tick, std::vector<EventoGan
                     continue;
                 }
 
+                // Ao liberar, a primeira tarefa da fila recebe o mutex e volta
+                // para pronta.
                 std::string proximaTarefaId = mutex.filaEspera.front();
                 mutex.filaEspera.pop_front();
                 mutex.donoTarefaID = proximaTarefaId;
@@ -433,6 +442,7 @@ bool GerenciadorSimulacao::processarAcoesTarefas(int tick, std::vector<EventoGan
                     precisaReescalonar = true;
                 }
             } else {
+                // IO bloqueia a tarefa e agenda a IRQ que vai libera-la.
                 eventos.push_back({tarefa->getID(), TipoEventoGantt::InicioIO, -1});
                 tarefa->avancarAcao();
                 tarefa->setEstadoAtual(EstadoTarefa::Suspensa);
